@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="Product">
+
+    <!-- 상품코드 유효성 검사 -->
+    <select id="selectProductCodeValidCount" parameterType="HashMap" resultType="Integer">
+        /* Product.selectProductCodeValidCount */
+        SELECT COUNT(PRD_MST_CD)
+        FROM T_PRD_MST
+        WHERE PRD_MST_CD = #{PRD_MST_CD}
+    </select>
+    
+    <!-- 상품관리 > 상품검색 조건 -->
+    <sql id="ProductWhere">
+        <where>
+            <if test="searchStartDate != null and searchStartDate != '' and searchEndDate != null and searchEndDate != ''">
+            AND PM.PRD_MST_REG_DT BETWEEN CONCAT(REPLACE(#{searchStartDate}, '-', ''), '000000') AND CONCAT(REPLACE(#{searchEndDate}, '-', ''), '235959')
+            </if>
+            <if test="searchPrdMstCd != null and searchPrdMstCd != ''">
+            AND PM.PRD_MST_CD = #{searchPrdMstCd}
+            </if>
+            <if test="searchPrdMstNm != null and searchPrdMstNm != ''">
+            AND PM.PRD_MST_NM LIKE CONCAT('%', #{searchPrdMstNm}, '%')
+            </if>
+            <if test="searchPrdMstGbn != null and searchPrdMstGbn != ''">
+            AND PM.PRD_MST_GBN = #{searchPrdMstGbn}
+            </if>
+            <if test="searchSkuMstStatus != null and searchSkuMstStatus != ''">
+            AND EXISTS (
+                SELECT
+                *
+                FROM T_SKU_MST SM
+                WHERE SM.PRD_MST_CD = PM.PRD_MST_CD
+                    AND SM.SKU_MST_USE_YN = 'Y'
+                    AND SM.SKU_MST_STATUS = #{searchSkuMstStatus}
+            )
+            </if>
+            <if test="searchStrMstIdx != null and searchStrMstIdx != ''">
+            AND EXISTS (
+                SELECT
+                *
+                FROM T_SKU_MST SM
+                WHERE SM.PRD_MST_CD = PM.PRD_MST_CD
+                    AND SM.SKU_MST_USE_YN = 'Y'
+                    AND SM.STR_MST_IDX = #{searchStrMstIdx}
+            )
+            </if>
+        </where>
+    </sql>
+    
+    <!-- 상품관리 > 상품목록 개수 -->
+    <select id="selectProductListCount" parameterType="HashMap" resultType="Integer">
+        /* Product.selectProductListCount */
+        SELECT COUNT(PM.PRD_MST_CD)
+        FROM T_PRD_MST PM
+        <include refid="ProductWhere" />
+    </select>
+    
+    <!-- 상품관리 > 상품목록 -->
+    <select id="selectProductList" parameterType="HashMap" resultType="HashMap">
+        /* Product.selectProductList */
+        SELECT S1.*
+            , (SELECT CC.CMN_COM_NM FROM T_CMM_COM CC WHERE CC.CMN_COM_IDX = S1.PRD_MST_GBN) AS PRD_MST_GBN_NM
+        FROM (
+            SELECT PM.PRD_MST_CD
+                , PM.PRD_MST_NM
+                , PM.PRD_MST_GBN
+                , PM.PRD_MST_CPN
+                , PM.PRD_MST_REG_ID
+                , PM.PRD_MST_REG_DT
+            FROM T_PRD_MST PM
+            <include refid="ProductWhere" />
+            ORDER BY PRD_MST_REG_DT DESC
+            LIMIT #{startNum}, #{endNum}
+        ) S1
+    </select>
+    
+
+    <!-- 상품관리 > 상품상세정보 -->    
+    <resultMap id="resultProductInfo" type="HashMap">
+        <result property="PRD_MST_CD" column="PRD_MST_CD" />
+        <result property="PRD_MST_NM" column="PRD_MST_NM" />
+        <result property="PRD_MST_GBN" column="PRD_MST_GBN" />
+        <result property="PRD_MST_CPN" column="PRD_MST_CPN" />
+        <result property="PRD_MST_REG_ID" column="PRD_MST_REG_ID" />
+        <result property="PRD_MST_REG_DT" column="PRD_MST_REG_DT" />
+        <collection property="STOCK_LIST" javaType="ArrayList" resultMap="Product.resultStockList" />
+    </resultMap>
+    <resultMap id="resultStockList" type="HashMap">
+        <result property="SKU_MST_IDX" column="SKU_MST_IDX"/>
+        <result property="STR_MST_IDX" column="STR_MST_IDX"/>
+        <result property="SKU_MST_STC" column="SKU_MST_STC"/>
+        <result property="SKU_MST_STATUS" column="SKU_MST_STATUS"/>
+        <result property="SKU_MST_PRC" column="SKU_MST_PRC"/>
+    </resultMap>
+    <select id="selectProductInfo" parameterType="HashMap" resultMap="Product.resultProductInfo">
+        /* Product.selectProductInfo */
+        SELECT PM.PRD_MST_CD
+            , PM.PRD_MST_NM
+            , PM.PRD_MST_GBN
+            , PM.PRD_MST_CPN
+            , PM.PRD_MST_REG_ID
+            , PM.PRD_MST_REG_DT
+            , SM.SKU_MST_IDX
+            , SM.STR_MST_IDX
+            , SM.SKU_MST_STC
+            , SM.SKU_MST_STATUS
+            , SM.SKU_MST_PRC
+        FROM T_PRD_MST PM
+        INNER JOIN T_SKU_MST SM ON PM.PRD_MST_CD = SM.PRD_MST_CD
+        WHERE PM.PRD_MST_CD = #{PRD_MST_CD}
+            AND SM.SKU_MST_USE_YN = 'Y'
+    </select>
+    
+    <!-- 상품관리 > 상품등록 -->
+    <insert id="insertProduct" parameterType="HashMap">
+        /* Product.insertProduct */
+        INSERT INTO T_PRD_MST (
+            PRD_MST_CD
+            , PRD_MST_NM
+            , PRD_MST_GBN
+            , PRD_MST_CPN
+            , PRD_MST_REG_DT
+            , PRD_MST_REG_IP
+            , PRD_MST_REG_ID
+        ) VALUES (
+            #{PRD_MST_CD}
+            , #{PRD_MST_NM}
+            , #{PRD_MST_GBN}
+            , #{PRD_MST_CPN}
+            , DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+            , #{REG_IP}
+            , #{REG_ID}
+        )
+    </insert>
+    
+    <!-- 상품관리 > 상품수정 -->
+    <update id="updateProduct" parameterType="HashMap">
+        /* Product.updateProduct */
+        UPDATE T_PRD_MST SET
+            PRD_MST_NM = #{PRD_MST_NM} 
+            , PRD_MST_GBN = #{PRD_MST_GBN}
+            , PRD_MST_CPN = #{PRD_MST_CPN}
+            , PRD_MST_UPD_DT = DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+            , PRD_MST_UPD_IP = #{REG_IP}
+            , PRD_MST_UPD_ID = #{REG_ID} 
+        WHERE PRD_MST_CD = #{PRD_MST_CD}
+    </update>
+</mapper>

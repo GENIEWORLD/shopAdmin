@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="Notice">
+
+    <!-- 공지사항 검색조건 -->
+    <sql id="NoticeWhere">
+        <where>
+            <if test="searchStartDate != null and searchStartDate != '' and searchEndDate != null and searchEndDate != ''">
+            AND BRD_NTS_REG_DT BETWEEN CONCAT(REPLACE(#{searchStartDate}, '-', ''), '000000') AND CONCAT(REPLACE(#{searchEndDate}, '-', ''), '235959')
+            </if>
+            <if test="searchStrMstIdx != null and searchStrMstIdx != ''">
+            AND STR_MST_IDX = #{searchStrMstIdx}
+            </if>
+            <if test="searchBrdNtsTitle != null and searchBrdNtsTitle != ''">
+            AND BRD_NTS_TITLE LIKE CONCAT('%', #{searchBrdNtsTitle}, '%')
+            </if>
+            <if test="searchNtsUseYn != null and searchNtsUseYn != ''">
+            AND BRD_NTS_USE_YN = #{searchNtsUseYn}
+            </if>
+            <if test="searchNtsTopYn != null and searchNtsTopYn != ''">
+            AND BRD_NTS_TOP_YN = #{searchNtsTopYn}
+            </if>
+        </where>
+    </sql>
+
+    <!-- 공지사항 목록 개수 -->
+    <select id="selectNoticeListCount" parameterType="HashMap" resultType="Integer">
+        /* Notice.selectNoticeListCount */
+        SELECT COUNT(BRD_NTS_IDX)
+        FROM T_BRD_NTS
+        <include refid="NoticeWhere" />
+    </select>
+    
+    <!-- 공지사항 목록 -->
+    <select id="selectNoticeList"  parameterType="HashMap" resultType="HashMap">
+        /* Notice.selectNoticeList */
+        SELECT S1.*
+            , (SELECT SM.STR_MST_NM FROM T_STR_MST SM WHERE SM.STR_MST_IDX = S1.STR_MST_IDX) AS STR_MST_NM
+        FROM (
+            SELECT BRD_NTS_IDX
+                , BRD_NTS_TITLE
+                , STR_MST_IDX
+                , BRD_NTS_TOP_YN
+                , BRD_NTS_USE_YN
+                , BRD_NTS_READ_CNT
+                , BRD_NTS_REG_DT
+                , BRD_NTS_REG_ID
+            FROM T_BRD_NTS
+            <include refid="NoticeWhere" />
+            ORDER BY BRD_NTS_REG_DT DESC
+            LIMIT #{startNum}, #{endNum}
+        ) S1
+    </select>
+    
+    <!-- 공지사항 상세정보 -->
+    <select id="selectNoticeInfo"  parameterType="HashMap" resultType="HashMap">
+        /* Notice.selectNoticeInfo */
+        SELECT BN.BRD_NTS_IDX
+            , BN.BRD_NTS_TITLE
+            , BN.BRD_NTS_CONTENTS
+            , BN.STR_MST_IDX
+            , (SELECT SM.STR_MST_NM FROM T_STR_MST SM WHERE SM.STR_MST_IDX = BN.STR_MST_IDX) AS STR_MST_NM
+            , BN.BRD_NTS_TOP_YN
+            , BN.BRD_NTS_USE_YN
+            , BN.BRD_NTS_READ_CNT
+            , BN.BRD_NTS_REG_DT
+            , BN.BRD_NTS_REG_ID
+        FROM T_BRD_NTS BN
+        WHERE BN.BRD_NTS_IDX = #{BRD_NTS_IDX}
+    </select>
+    
+    <!-- 공지사항 등록 -->
+    <insert id="insertNotice"  parameterType="HashMap">
+        /* Notice.insertNotice */
+        INSERT INTO T_BRD_NTS(
+            BRD_NTS_TITLE
+            , BRD_NTS_CONTENTS
+            , STR_MST_IDX
+            , BRD_NTS_TOP_YN
+            , BRD_NTS_READ_CNT
+            , BRD_NTS_USE_YN
+            , BRD_NTS_REG_DT
+            , BRD_NTS_REG_IP
+            , BRD_NTS_REG_ID
+        ) VALUES (
+            #{BRD_NTS_TITLE}
+            , #{BRD_NTS_CONTENTS}
+            , #{STR_MST_IDX}
+            , #{BRD_NTS_TOP_YN}
+            , 0
+            , #{BRD_NTS_USE_YN}
+            , DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+            , #{REG_IP}
+            , #{REG_ID}
+        )
+    </insert>
+    
+    <!-- 공지사항 수정 -->
+    <update id="updateNotice" parameterType="HashMap">
+        /* Notice.updateNotice */
+        UPDATE T_BRD_NTS SET
+            BRD_NTS_UPD_DT = DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+            , BRD_NTS_UPD_IP = #{REG_IP}
+            , BRD_NTS_UPD_ID = #{REG_ID}
+            <if test="BRD_NTS_TITLE != null and BRD_NTS_TITLE != ''">
+            , BRD_NTS_TITLE = #{BRD_NTS_TITLE}
+            </if>
+            <if test="BRD_NTS_CONTENTS != null and BRD_NTS_CONTENTS != ''">
+            , BRD_NTS_CONTENTS = #{BRD_NTS_CONTENTS}
+            </if>
+            <if test="STR_MST_IDX != null and STR_MST_IDX != ''">
+            , STR_MST_IDX = #{STR_MST_IDX}
+            </if>
+            <if test="BRD_NTS_TOP_YN != null and BRD_NTS_TOP_YN != ''">
+            , BRD_NTS_TOP_YN = #{BRD_NTS_TOP_YN}
+            </if>
+            <if test="BRD_NTS_USE_YN != null and BRD_NTS_USE_YN != ''">
+            , BRD_NTS_USE_YN = #{BRD_NTS_USE_YN}
+            </if>
+            <if test="BRD_NTS_READ_CNT != null and BRD_NTS_READ_CNT != ''">
+            , BRD_NTS_READ_CNT = IFNULL(BRD_NTS_READ_CNT, 0) + 1
+            </if>
+        WHERE BRD_NTS_IDX = #{BRD_NTS_IDX}
+    </update>
+    
+    <!-- 상단공지 목록 -->
+    <select id="selectNoticeTopList" parameterType="HashMap" resultType="HashMap">
+        /* Notice.selectNoticeTopList */
+        SELECT BN.BRD_NTS_IDX
+            , BN.BRD_NTS_TITLE
+            , BN.STR_MST_IDX
+            , (SELECT SM.STR_MST_NM FROM T_STR_MST SM WHERE SM.STR_MST_IDX = BN.STR_MST_IDX) AS STR_MST_NM
+            , BN.BRD_NTS_TOP_YN
+            , BN.BRD_NTS_USE_YN
+            , BN.BRD_NTS_READ_CNT
+            , BN.BRD_NTS_REG_DT
+            , BN.BRD_NTS_REG_ID
+            , CASE 
+                WHEN BN.BRD_NTS_REG_DT > DATE_FORMAT(DATE_ADD(NOW(), interval-7 DAY), '%Y%m%d%H%i%s') 
+                THEN 'Y' ELSE 'N' 
+            END AS LATELY_YN
+        FROM T_BRD_NTS BN
+        WHERE BN.BRD_NTS_TOP_YN = 'Y'
+            <if test="STR_MST_IDX != null and STR_MST_IDX != ''">
+            AND BN.STR_MST_IDX IN ('0', #{STR_MST_IDX})
+            </if>
+        ORDER BY BN.BRD_NTS_REG_DT DESC
+        LIMIT 0, 5
+    </select>
+
+</mapper>

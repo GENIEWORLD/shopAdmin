@@ -1,0 +1,357 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="Order">
+
+    <!-- 주문 검색조건 -->
+    <sql id="OrderWhere">
+        <where>
+                OM.MEM_MST_IDX = MM.MEM_MST_IDX
+                AND OM.ORD_MST_ORD_STE <![CDATA[<>]]> #{ORDER_STATE_COMPLETE}
+            <if test="searchOrdMstGivYn != null and searchOrdMstGivYn != ''">
+                AND OM.ORD_MST_GIV_YN = #{searchOrdMstGivYn}
+            </if>
+            <if test="searchMemMstCd != null and searchMemMstCd != ''">
+                AND MM.MEM_MST_CD LIKE CONCAT('%', #{searchMemMstCd}, '%')
+            </if>
+            <if test="searchMemMstNm != null and searchMemMstNm != '' ">
+                AND MM.MEM_MST_NM LIKE CONCAT('%', #{searchMemMstNm}, '%')
+            </if>
+            <if test="searchOrdState != null and searchOrdState != ''">
+                AND OM.ORD_MST_ORD_STE = #{searchOrdState}
+            </if>
+            <if test="searchComInfIdx != null and searchComInfIdx != ''">
+                AND OM.COM_INF_IDX = #{searchMemMstLvl}
+            </if>
+            <if test="searchOrdShop != null and searchOrdShop != ''">
+                AND OM.STR_MST_IDX = #{searchOrdShop}
+            </if>
+        </where>
+    </sql>
+
+    <!-- 주문 목록 -->
+    <select id="selectOrderList" parameterType="HashMap" resultType="HashMap">
+        /* Order.selectOrderList */
+        SELECT 
+            OM.ORD_MST_IDX,
+            MM.MEM_MST_CD,
+            MM.MEM_MST_NM,
+            MM.MEM_MST_TEL,
+            (SELECT ADM_MST_NM FROM T_ADM_MST AM WHERE OM.ADM_MST_ID = AM.ADM_MST_ID) AS DSN_NM,
+            IFNULL(OM.ORD_MST_JK,0) AS ORD_MST_JK,
+            IFNULL(OM.ORD_MST_P,0)  AS ORD_MST_P,
+            IFNULL(OM.ORD_MST_V,0)  AS ORD_MST_V,
+            IFNULL(OM.ORD_MST_Y,0)  AS ORD_MST_Y,
+            IFNULL(OM.ORD_MST_C,0)  AS ORD_MST_C,
+            IFNULL(OM.ORD_MST_SC,0) AS ORD_MST_SC,
+            IFNULL(OM.ORD_MST_SH,0) AS ORD_MST_SH,
+            IFNULL(OM.ORD_MST_O,0)  AS ORD_MST_O,
+            IFNULL(OM.ORD_MST_NKT,0) AS ORD_MST_NKT,
+            IFNULL(OM.ORD_MST_BWT,0) AS ORD_MST_BWT,
+            IFNULL(OM.ORD_MST_HKC,0) AS ORD_MST_HKC,
+            OM.ORD_MST_SVC_ETC,
+            DATE_FORMAT(OM.ORD_MST_REG_DT, '%Y-%m-%d') AS ORD_MST_REG_DT,
+            DATE_FORMAT(OM.ORD_MST_RLS_DT, '%Y-%m-%d') AS ORD_MST_RLS_DT,
+            DATE_FORMAT(OM.ORD_MST_PIK_DT, '%Y-%m-%d') AS ORD_MST_PIK_DT,
+            OM.ORD_MST_ORD_STE,
+            (SELECT CMN_COM_NM FROM T_CMM_COM CC WHERE OM.ORD_MST_ORD_STE = CC.CMN_COM_IDX) AS ORD_MST_ORD,
+            OM.ORD_MST_GIV_YN
+        FROM T_ODR_MST OM, T_MEM_MST MM
+        <include refid="OrderWhere" />
+        ORDER BY OM.ORD_MST_REG_DT DESC
+        <if test="endNum != null and endNum != ''">
+        LIMIT #{startNum}, #{endNum}
+        </if>
+    </select>
+    
+    <!-- 주문 카운트 -->
+    <select id="selectOrderListCount" parameterType="HashMap" resultType="Integer">
+        /* Order.selectOrderListCount */
+        SELECT 
+            COUNT(1)
+        FROM T_ODR_MST OM, T_MEM_MST MM
+        <include refid="OrderWhere" />
+    </select>    
+    
+    <!-- 고객 주문 목록 -->
+    <select id="selectCustomerOrderList" parameterType="HashMap" resultType="HashMap">
+        /* Order.selectCustomerOrderList */
+        SELECT
+            ORD_MST_IDX, OM.ORD_MST_JK, OM.ORD_MST_P, OM.ORD_MST_V, OM.ORD_MST_Y
+            , OM.ORD_MST_C, OM.ORD_MST_SC, OM.ORD_MST_SH, OM.ORD_MST_O, OM.ORD_MST_GIV_YN
+            , OM.ORD_MST_ORD_DT, OM.ORD_MST_RLS_DT, OM.ORD_MST_PIK_DT, OM.ORD_MST_SAL, OM.ORD_MST_BAL
+            , ORD_MST_CSH, ORD_MST_CRD, ORD_MST_WXN, ORD_MST_ZFU, ORD_MST_DZH
+            , ORD_MST_HBH, ORD_MST_PAY_ETC, ORD_MST_ETC
+        FROM T_ODR_MST OM
+        WHERE OM.MEM_MST_IDX = #{memMstIdx}
+        ORDER BY OM.ORD_MST_IDX DESC
+    </select>    
+    
+    <!-- 주문 등록 -->
+    <insert id="insertOrder"  parameterType="HashMap">
+        /* Order.insertOrder */
+        INSERT INTO T_ODR_MST(
+            MEM_MST_IDX
+            ,STR_MST_IDX
+            ,ADM_MST_ID
+            ,COM_INF_IDX
+            ,ORD_MST_WDP
+            ,ORD_MST_JK
+            ,ORD_MST_P
+            ,ORD_MST_V
+            ,ORD_MST_Y
+            ,ORD_MST_C
+            ,ORD_MST_SC
+            ,ORD_MST_SH
+            ,ORD_MST_O
+            ,ORD_MST_NKT
+            ,ORD_MST_BWT
+            ,ORD_MST_HKC
+            ,ORD_MST_SVC_ETC
+            ,ORD_MST_ORD_DT
+            <if test="ORD_MST_RLS_DT != null and ORD_MST_RLS_DT != ''">
+            ,ORD_MST_RLS_DT
+            </if>
+            <if test="ORD_MST_PIK_DT != null and ORD_MST_PIK_DT != ''">
+            ,ORD_MST_PIK_DT
+            </if>
+            ,ORD_MST_ORD_STE
+            ,ORD_MST_SAL
+            ,ORD_MST_BAL
+            ,ORD_MST_GIV_YN
+            ,ORD_MST_CSH
+            ,ORD_MST_CRD
+            ,ORD_MST_WXN
+            ,ORD_MST_ZFU
+            ,ORD_MST_DZH
+            ,ORD_MST_HBH
+            ,ORD_MST_PAY_ETC
+            ,ORD_MST_ETC
+            ,ORD_MST_REG_DT
+            ,ORD_MST_REG_IP
+            ,ORD_MST_REG_ID
+            ,ORD_MST_UPD_DT
+            ,ORD_MST_UPD_IP
+            ,ORD_MST_UPD_ID
+        ) VALUES (
+            #{MEM_MST_IDX}
+            ,#{STR_MST_IDX}
+            ,#{ADM_MST_ID}
+            ,#{COM_INF_IDX}
+            ,#{ORD_MST_WDP}
+            ,#{ORD_MST_JK}
+            ,#{ORD_MST_P}
+            ,#{ORD_MST_V}
+            ,#{ORD_MST_Y}
+            ,#{ORD_MST_C}
+            ,#{ORD_MST_SC}
+            ,#{ORD_MST_SH}
+            ,#{ORD_MST_O}
+            ,#{ORD_MST_NKT}
+            ,#{ORD_MST_BWT}
+            ,#{ORD_MST_HKC}
+            ,#{ORD_MST_SVC_ETC}
+            ,DATE_FORMAT(#{ORD_MST_ORD_DT}, '%Y%m%d%H%i%s')
+            <if test="ORD_MST_RLS_DT != null and ORD_MST_RLS_DT != ''">
+            ,DATE_FORMAT(#{ORD_MST_RLS_DT}, '%Y%m%d%H%i%s')
+            </if>
+            <if test="ORD_MST_PIK_DT != null and ORD_MST_PIK_DT != ''">
+            ,DATE_FORMAT(#{ORD_MST_PIK_DT}, '%Y%m%d%H%i%s')
+            </if>
+            ,#{ORD_MST_ORD_STE}
+            ,#{ORD_MST_SAL}
+            ,IFNULL(NULLIF(#{ORD_MST_BAL}, ''),0)
+            ,#{ORD_MST_GIV_YN}
+            ,#{ORD_MST_CSH}
+            ,#{ORD_MST_CRD}
+            ,#{ORD_MST_WXN}
+            ,#{ORD_MST_ZFU}
+            ,#{ORD_MST_DZH}
+            ,#{ORD_MST_HBH}
+            ,#{ORD_MST_PAY_ETC}
+            ,#{ORD_MST_ETC}
+            , DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+            , #{REG_IP}
+            , #{REG_ID}
+            , DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+            , #{REG_IP}
+            , #{REG_ID}            
+        )
+    </insert>    
+    
+    <!-- 주문 상세정보 -->
+    <select id="selectOrderInfo"  parameterType="HashMap" resultType="HashMap">
+        /* Order.selectOrderInfo */
+        SELECT             
+          MEM_MST_IDX
+          ,(SELECT MEM_MST_CD FROM T_MEM_MST MM WHERE MM.MEM_MST_IDX = OM.MEM_MST_IDX ) AS MEM_MST_CD
+          ,(SELECT MEM_MST_NM FROM T_MEM_MST MM WHERE MM.MEM_MST_IDX = OM.MEM_MST_IDX ) AS MEM_MST_NM
+          ,(SELECT MEM_MST_TEL FROM T_MEM_MST MM WHERE MM.MEM_MST_IDX = OM.MEM_MST_IDX ) AS MEM_MST_TEL
+          ,(SELECT MEM_MST_WED FROM T_MEM_MST MM WHERE MM.MEM_MST_IDX = OM.MEM_MST_IDX ) AS MEM_MST_WED          
+          ,STR_MST_IDX
+          ,ADM_MST_ID
+          ,COM_INF_IDX
+          ,ORD_MST_WDP
+          ,ORD_MST_JK
+          ,ORD_MST_P
+          ,ORD_MST_V
+          ,ORD_MST_Y
+          ,ORD_MST_C
+          ,ORD_MST_SC
+          ,ORD_MST_SH
+          ,ORD_MST_O
+          ,ORD_MST_NKT
+          ,ORD_MST_BWT
+          ,ORD_MST_HKC
+          ,ORD_MST_SVC_ETC
+          ,ORD_MST_ORD_DT
+          ,ORD_MST_RLS_DT
+          ,ORD_MST_PIK_DT
+          ,ORD_MST_ORD_STE
+          ,ORD_MST_SAL
+          ,ORD_MST_BAL
+          ,ORD_MST_GIV_YN
+          ,ORD_MST_CSH
+          ,ORD_MST_CRD
+          ,ORD_MST_WXN
+          ,ORD_MST_ZFU
+          ,ORD_MST_DZH
+          ,ORD_MST_HBH
+          ,ORD_MST_PAY_ETC
+          ,ORD_MST_ETC
+        FROM T_ODR_MST OM
+        WHERE ORD_MST_IDX = #{ORD_MST_IDX}
+    </select>    
+    
+    <!-- 주문정보 수정 -->
+    <update id="updateOrder" parameterType="HashMap">
+        /* Order.updateOrder */
+        UPDATE T_ODR_MST SET
+            MEM_MST_IDX = #{MEM_MST_IDX}
+            ,STR_MST_IDX = #{STR_MST_IDX}
+            ,ADM_MST_ID = #{ADM_MST_ID}
+            ,COM_INF_IDX = #{COM_INF_IDX}
+            ,ORD_MST_WDP = #{ORD_MST_WDP}
+            ,ORD_MST_JK = #{ORD_MST_JK}
+            ,ORD_MST_P = #{ORD_MST_P}
+            ,ORD_MST_V = #{ORD_MST_V}
+            ,ORD_MST_Y = #{ORD_MST_Y}
+            ,ORD_MST_C = #{ORD_MST_C}
+            ,ORD_MST_SC = #{ORD_MST_SC}
+            ,ORD_MST_SH = #{ORD_MST_SH}
+            ,ORD_MST_O = #{ORD_MST_O}
+            ,ORD_MST_NKT = #{ORD_MST_NKT}
+            ,ORD_MST_BWT = #{ORD_MST_BWT}
+            ,ORD_MST_HKC = #{ORD_MST_HKC}
+            ,ORD_MST_SVC_ETC = #{ORD_MST_SVC_ETC}
+            <if test="ORD_MST_ORD_DT != null and ORD_MST_ORD_DT != ''">
+            ,ORD_MST_ORD_DT = DATE_FORMAT(#{ORD_MST_ORD_DT}, '%Y%m%d%H%i%s')
+            </if>
+            <if test="ORD_MST_RLS_DT != null and ORD_MST_RLS_DT != ''">
+            ,ORD_MST_RLS_DT = DATE_FORMAT(#{ORD_MST_RLS_DT}, '%Y%m%d%H%i%s')
+            </if>
+            <if test="ORD_MST_PIK_DT != null and ORD_MST_PIK_DT != ''">
+            ,ORD_MST_PIK_DT = DATE_FORMAT(#{ORD_MST_PIK_DT}, '%Y%m%d%H%i%s')
+            </if>
+            ,ORD_MST_ORD_STE = #{ORD_MST_ORD_STE}
+            ,ORD_MST_SAL = #{ORD_MST_SAL}
+            ,ORD_MST_BAL = IFNULL(NULLIF(#{ORD_MST_BAL}, ''), 0)
+            ,ORD_MST_GIV_YN = #{ORD_MST_GIV_YN}
+            ,ORD_MST_CSH = #{ORD_MST_CSH}
+            ,ORD_MST_CRD = #{ORD_MST_CRD}
+            ,ORD_MST_WXN = #{ORD_MST_WXN}
+            ,ORD_MST_ZFU = #{ORD_MST_ZFU}
+            ,ORD_MST_DZH = #{ORD_MST_DZH}
+            ,ORD_MST_HBH = #{ORD_MST_HBH}
+            ,ORD_MST_PAY_ETC = #{ORD_MST_PAY_ETC}
+            ,ORD_MST_ETC = #{ORD_MST_ETC}
+            ,ORD_MST_UPD_DT = DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+            ,ORD_MST_UPD_IP = #{REG_IP}
+            ,ORD_MST_UPD_ID = #{REG_ID}          
+        WHERE ORD_MST_IDX = #{ORD_MST_IDX}
+    </update>    
+    
+    <!-- 주문 삭제 -->
+    <delete id="deleteOrder" parameterType="HashMap">
+        /* Order.deleteOrder */
+        DELETE FROM T_ODR_MST WHERE ORD_MST_IDX = #{ORD_MST_IDX}
+    </delete>
+    
+    <!-- 주문정보 수정 -->
+    <update id="updateOrderState" parameterType="HashMap">
+        /* Order.updateOrderState */
+        UPDATE T_ODR_MST SET
+            ORD_MST_ORD_STE = #{ORD_MST_ORD_STE}
+        WHERE ORD_MST_IDX IN
+        <foreach collection="ORD_MST_IDXs" item="row" open="(" close=")" separator=",">#{row}</foreach>
+    </update>
+    
+    <!-- 납품 예약 목록 -->
+    <select id="selectOrderReservationList" parameterType="HashMap" resultType="HashMap">
+        /* Order.selectOrderReservationList */
+        SELECT OS.ORD_RSV_IDX
+            , OS.ORD_RSV_YER, OS.ORD_RSV_MON
+            , OS.ORD_RSV_DAY, OS.ORD_RSV_HOR
+            , OS.ORD_RSV_MIM, AM.ADM_MST_ID, AM.ADM_MST_NM
+            , MM.MEM_MST_IDX, MM.MEM_MST_CD, MM.MEM_MST_NM
+            , CONCAT(OS.ORD_RSV_YER, '-', OS.ORD_RSV_MON, '-', OS.ORD_RSV_DAY, ' ', OS.ORD_RSV_HOR, ':', OS.ORD_RSV_MIM) AS start
+            , CONCAT(OS.ORD_RSV_HOR, ':', OS.ORD_RSV_MIM, '-', MM.MEM_MST_CD, '-', AM.ADM_MST_NM) AS title
+        FROM T_ORD_RSV OS
+        INNER JOIN T_ADM_MST AM ON OS.ADM_MST_ID = AM.ADM_MST_ID
+        INNER JOIN T_MEM_MST MM ON OS.MEM_MST_IDX = MM.MEM_MST_IDX
+        WHERE OS.ORD_RSV_YER = #{searchYear}
+            AND OS.ORD_RSV_MON = #{searchMonth}
+            <if test="searchDay != null and searchDay != ''">
+            AND OS.ORD_RSV_DAY = #{searchDay}
+            </if>
+        ORDER BY OS.ORD_RSV_YER ASC, OS.ORD_RSV_MON ASC, OS.ORD_RSV_DAY ASC, OS.ORD_RSV_HOR ASC, OS.ORD_RSV_MIM ASC
+    </select>
+    
+    <!-- 납풉 예약 중복 체크 -->
+    <select id="selectOrderReservationDupCount" parameterType="HashMap" resultType="Integer">
+        /* Order.selectOrderReservationDupCount */
+        SELECT COUNT(OS.ORD_RSV_IDX)
+        FROM T_ORD_RSV OS
+        WHERE OS.ORD_RSV_YER = #{ORD_RSV_YER}
+            AND OS.ORD_RSV_MON = #{ORD_RSV_MON}
+            AND OS.ORD_RSV_DAY = #{ORD_RSV_DAY}
+            AND OS.ORD_RSV_HOR = #{ORD_RSV_HOR}
+            AND OS.ORD_RSV_MIM = #{ORD_RSV_MIM}
+    </select>
+    
+    <!-- 납품 예약 등록 -->
+    <insert id="insertOrderReservation" parameterType="HashMap">
+        /* Order.insertOrderReservation */
+        INSERT INTO T_ORD_RSV(
+           ORD_RSV_YER
+          , ORD_RSV_MON
+          , ORD_RSV_DAY
+          , ORD_RSV_HOR
+          , ORD_RSV_MIM
+          , ADM_MST_ID
+          , MEM_MST_IDX
+          , ORD_RSV_REG_DT
+          , ORD_RSV_REG_IP
+          , ORD_RSV_REG_ID
+        ) VALUES (
+           #{ORD_RSV_YER}
+          , #{ORD_RSV_MON}
+          , #{ORD_RSV_DAY}
+          , #{ORD_RSV_HOR}
+          , #{ORD_RSV_MIM}
+          , #{ADM_MST_ID}
+          , #{MEM_MST_IDX}
+          , DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+          , #{REG_IP}
+          , #{REG_ID}
+        )
+    </insert>
+    
+    <!-- 납품 예약 삭제 -->
+    <delete id="deleteOrderReservation" parameterType="HashMap">
+        /* Order.deleteOrderReservation */
+        DELETE FROM T_ORD_RSV WHERE ORD_RSV_IDX = #{ORD_RSV_IDX}
+    </delete>
+           
+    
+</mapper>

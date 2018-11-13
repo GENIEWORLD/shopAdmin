@@ -1,0 +1,44 @@
+ID : sksji90
+PassWoard : labellino0713
+
+
+# FTP
+Host : uj64-017.cafe24.com
+Port : 22
+User : sksji90
+PassWoard : labellino5907
+
+# DB
+Connection Type : Http Proxy
+Host : uj64-017.cafe24.com
+User : sksji90
+Passwoard : labellino5907
+Database : sksji90
+Port : 3306
+Proxy Port : 8080
+Proxy User : sksji90
+Proxy Passwoard : labellino5907
+------------------------------------------------------------------
+Connection Type : Http Proxy
+Host : innodb-005.cafe24.com
+User : jangsin88
+Passwoard : labellino5907
+Database : jangsin88
+Port : 3306
+Proxy Port : 8080
+Proxy User : jangsin88
+Proxy Passwoard : labellino5907
+
+# SVN
+https://124.51.247.10:443/svn/svn/shopAdmin
+ngw/1216
+khj/1011
+js/1027
+
+# 버튼명 및 타입
+검색 : success
+목록 : primary
+등록 : primary
+저장 : info
+삭제 : danger
+엑셀다운 : default

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="Login">
+
+
+	   <!-- 관리자 로그인 정보 조회 -->
+    <select id="selectLoginInfo" parameterType="HashMap" resultType="HashMap">
+        /* Login.selectLoginInfo */
+        SELECT
+            AM.ADM_MST_ID, AM.ADM_MST_GBN, AM.ADM_MST_PWD, AM.ADM_MST_NM           
+            , AM.ADM_MST_USE_YN
+            , CASE 
+                WHEN IFNULL(AM.ADM_MST_SAL, #{SALES_TYPE_SOP}) =  #{SALES_TYPE_INDIVIDUAL} THEN 'Y'
+                ELSE 'N'
+            END AS salesYn
+            , CASE 
+                WHEN IFNULL(AM.ADM_MST_PAY, #{SALARY_TYPE_SHOP}) = #{SALARY_TYPE_INDIVIDUAL} THEN 'Y'
+                ELSE 'N'
+            END AS salaryAllYn
+            , IFNULL(AM.ADM_MST_DEL, 'N') AS holidayDelYn, IFNULL(AM.ADM_MST_NTC, 'N') AS noticeYn
+        FROM T_ADM_MST AM
+        WHERE AM.ADM_MST_ID = #{adminId}
+     	   AND ADM_MST_USE_YN = 'Y'
+    </select>
+
+    <!-- 관리자 로그인 정보 조회 
+    <select id="selectLoginInfo" parameterType="HashMap" resultType="HashMap">
+        /* Login.selectLoginInfo */
+        SELECT
+            AM.ADM_MST_ID, AM.ADM_MST_GBN, AM.ADM_MST_PWD, AM.ADM_MST_NM
+            , AM.STR_MST_IDX, SM.STR_MST_NM, AM.ADM_MST_USE_YN
+            , CASE 
+                WHEN IFNULL(AM.ADM_MST_SAL, #{SALES_TYPE_SOP}) =  #{SALES_TYPE_INDIVIDUAL} THEN 'Y'
+                ELSE 'N'
+            END AS salesYn
+            , CASE 
+                WHEN IFNULL(AM.ADM_MST_PAY, #{SALARY_TYPE_SHOP}) = #{SALARY_TYPE_INDIVIDUAL} THEN 'Y'
+                ELSE 'N'
+            END AS salaryAllYn
+            , IFNULL(AM.ADM_MST_DEL, 'N') AS holidayDelYn, IFNULL(AM.ADM_MST_NTC, 'N') AS noticeYn
+        FROM T_ADM_MST AM
+        INNER JOIN T_STR_MST SM ON AM.STR_MST_IDX = SM.STR_MST_IDX
+        WHERE AM.ADM_MST_ID = #{adminId}
+            AND SM.STR_MST_USE_YN = 'Y'
+    </select>
+-->
+    <!-- 관리자 로그인 이력 등록 -->
+    <insert id="insertLoginHistory" parameterType="HashMap">
+        /* Login.insertLoginHistory */
+        INSERT INTO T_ADM_MST_HISTORY(
+            ADM_ADM_MST_ID
+            , ADM_MST_REG_DT
+            , ADM_MST_REG_IP
+        )VALUES(
+            #{adminId}
+            , DATE_FORMAT(SYSDATE(), '%Y%m%d%H%i%s')
+            , #{REG_IP}
+        )
+    </insert>
+</mapper>

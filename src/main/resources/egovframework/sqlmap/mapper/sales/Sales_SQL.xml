@@ -1,0 +1,283 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="Sales">
+
+    <!-- 매출 목록 -->
+    <select id="selectSalesList" parameterType="HashMap" resultType="HashMap">
+        /* Sales.selectSalesList */
+        SELECT
+            DATE_FORMAT(OM.ORD_MST_ORD_DT, '%Y-%m-%d') AS ORD_MST_ORD_DT
+            , MM.MEM_MST_NM
+            , MM.MEM_MST_TEL
+            , AM.ADM_MST_NM
+            , CI.COM_INF_NM
+            , OM.ORD_MST_BAL
+            , OM.ORD_MST_SAL
+            , OM.ORD_MST_WDP
+            , DATE_FORMAT(OM.ORD_MST_ORD_DT, '%Y-%m-%d') AS ORD_MST_ORD_DT
+            , CAST(ROUND(OM.ORD_MST_SAL * CI.COM_INF_CMS / 100) AS UNSIGNED) AS COM_INCEN
+            , CAST(OM.ORD_MST_SAL - ROUND(OM.ORD_MST_SAL * CI.COM_INF_CMS / 100) AS UNSIGNED) AS PROFIT
+        FROM T_ODR_MST OM
+            INNER JOIN T_MEM_MST MM ON MM.MEM_MST_IDX = OM.MEM_MST_IDX
+            INNER JOIN T_COM_INF CI ON CI.COM_INF_IDX = OM.COM_INF_IDX
+            INNER JOIN T_ADM_MST AM ON AM.ADM_MST_ID = OM.ADM_MST_ID
+        WHERE OM.ORD_MST_ORD_DT BETWEEN CONCAT(REPLACE(#{searchStartDate}, '-', ''), '000000') AND CONCAT(REPLACE(#{searchEndDate}, '-', ''), '235959')
+        <if test="searchDesigner != null and searchDesigner != ''">
+            AND OM.ADM_MST_ID = #{searchDesigner}
+        </if>
+        <if test="searchShop != null and searchShop != ''">
+            AND OM.STR_MST_IDX = #{searchShop}
+        </if>
+        <if test="searchVendor != null and searchVendor != ''">
+            AND OM.COM_INF_IDX = #{searchVendor}
+        </if>
+        ORDER BY OM.ORD_MST_ORD_DT ASC
+    </select>
+
+    <!-- 매출 합계 -->
+    <select id="selectSalesTotalSum" parameterType="HashMap" resultType="HashMap">
+        /* Sales.selectSalesTotalSum */
+        SELECT
+            SUM(IFNULL(OM.ORD_MST_CSH , 0)) AS ORD_MST_CSH_SUM
+            , SUM(IFNULL(OM.ORD_MST_CRD , 0)) AS ORD_MST_CRD_SUM
+            , SUM(IFNULL(OM.ORD_MST_WXN , 0)) AS ORD_MST_WXN_SUM
+            , SUM(IFNULL(OM.ORD_MST_ZFU , 0)) AS ORD_MST_ZFU_SUM
+            , SUM(IFNULL(OM.ORD_MST_DZH , 0)) AS ORD_MST_DZH_SUM
+            , SUM(IFNULL(OM.ORD_MST_HBH , 0)) AS ORD_MST_HBH_SUM
+            , SUM(IFNULL(OM.ORD_MST_PAY_ETC , 0)) AS ORD_MST_PAY_ETC_SUM
+            , SUM(IFNULL(OM.ORD_MST_BAL , 0)) AS ORD_MST_BAL_SUM
+            , SUM(IFNULL(OM.ORD_MST_SAL , 0)) AS ORD_MST_SAL_SUM
+            , CAST(SUM(ROUND(OM.ORD_MST_SAL * CI.COM_INF_CMS / 100)) AS UNSIGNED) AS COM_INCEN_SUM
+            , CAST(SUM(IFNULL(OM.ORD_MST_SAL , 0)) - SUM(ROUND(OM.ORD_MST_SAL * CI.COM_INF_CMS / 100)) AS UNSIGNED) AS PROFIT_SUM
+        FROM T_ODR_MST OM
+            INNER JOIN T_COM_INF CI ON CI.COM_INF_IDX = OM.COM_INF_IDX
+        WHERE OM.ORD_MST_ORD_DT BETWEEN CONCAT(REPLACE(#{searchStartDate}, '-', ''), '000000') AND CONCAT(REPLACE(#{searchEndDate}, '-', ''), '235959')
+        <if test="searchDesigner != null and searchDesigner != ''">
+            AND OM.ADM_MST_ID = #{searchDesigner}
+        </if>
+        <if test="searchShop != null and searchShop != ''">
+            AND OM.STR_MST_IDX = #{searchShop}
+        </if>
+        <if test="searchVendor != null and searchVendor != ''">
+            AND OM.COM_INF_IDX = #{searchVendor}
+        </if>
+    </select>
+
+    <!-- 구매 회원수 -->
+    <select id="selectSalesCustomerList" parameterType="HashMap" resultType="HashMap">
+        /* Sales.selectSalesCustomerList */
+        SELECT
+            CI.COM_INF_IDX
+            , CI.COM_INF_NM
+            , COUNT(MM.MEM_MST_IDX) AS MEM_CNT
+            , SUM(IFNULL(OM.ORD_MST_SAL , 0)) AS ORD_MST_SAL_SUM
+        FROM T_ODR_MST OM
+            INNER JOIN T_MEM_MST MM ON MM.MEM_MST_IDX = OM.MEM_MST_IDX
+            INNER JOIN T_COM_INF CI ON CI.COM_INF_IDX = OM.COM_INF_IDX
+            INNER JOIN T_ADM_MST AM ON AM.ADM_MST_ID = OM.ADM_MST_ID
+        WHERE OM.ORD_MST_ORD_DT BETWEEN CONCAT(REPLACE(#{searchStartDate}, '-', ''), '000000') AND CONCAT(REPLACE(#{searchEndDate}, '-', ''), '235959')
+        <if test="searchDesigner != null and searchDesigner != ''">
+            AND OM.ADM_MST_ID = #{searchDesigner}
+        </if>
+        <if test="searchShop != null and searchShop != ''">
+            AND OM.STR_MST_IDX = #{searchShop}
+        </if>
+        GROUP BY CI.COM_INF_IDX, CI.COM_INF_NM
+        ORDER BY CI.COM_INF_IDX ASC
+    </select>
+
+    <!-- 구매 확률 -->
+    <select id="selectSalesProbabilityList" parameterType="HashMap" resultType="HashMap">
+        /* Sales.selectSalesProbabilityList */
+        SELECT
+            CI.COM_INF_IDX
+            , CI.COM_INF_NM
+            , CONCAT(CAST(ROUND(COUNT(CI.COM_INF_IDX) / CAST(#{ordCnt} AS UNSIGNED) * 100) AS CHAR), ' %') AS COM_RAT
+        FROM T_ODR_MST OM
+            INNER JOIN T_MEM_MST MM ON MM.MEM_MST_IDX = OM.MEM_MST_IDX
+            INNER JOIN T_COM_INF CI ON CI.COM_INF_IDX = OM.COM_INF_IDX
+            INNER JOIN T_ADM_MST AM ON AM.ADM_MST_ID = OM.ADM_MST_ID
+        WHERE OM.ORD_MST_ORD_DT BETWEEN CONCAT(REPLACE(#{searchStartDate}, '-', ''), '000000') AND CONCAT(REPLACE(#{searchEndDate}, '-', ''), '235959')
+        <if test="searchDesigner != null and searchDesigner != ''">
+            AND OM.ADM_MST_ID = #{searchDesigner}
+        </if>
+        <if test="searchShop != null and searchShop != ''">
+            AND OM.STR_MST_IDX = #{searchShop}
+        </if>
+        GROUP BY CI.COM_INF_IDX, CI.COM_INF_NM
+        ORDER BY CI.COM_INF_IDX ASC
+    </select>
+
+    <!-- 일일일지 목록 -->
+    <select id="selectDailyReportList" parameterType="HashMap" resultType="HashMap">
+        /* Sales.selectDailyReportList */
+        SELECT
+            DW.DAY_WRK_IDX
+            , DW.DAY_WRK_GBN
+            , DW.DAY_WRK_CTS
+            , DW.COM_INF_IDX
+            , DW.COM_INF_REG_ID
+            , DW.COM_INF_REG_DT
+            , CI.COM_INF_NM
+            , AM.ADM_MST_NM
+            , CC.CMN_COM_NM AS DAY_WRK_GBN_NM 
+        FROM T_DAY_WRK DW
+            INNER JOIN T_COM_INF CI ON CI.COM_INF_IDX = DW.COM_INF_IDX
+            INNER JOIN T_ADM_MST AM ON AM.ADM_MST_ID = DW.COM_INF_REG_ID
+            INNER JOIN T_CMM_COM CC ON CC.CMN_COM_IDX = DW.DAY_WRK_GBN
+        WHERE DW.COM_INF_REG_DT BETWEEN CONCAT(REPLACE(#{searchReportStartDate}, '-', ''), '000000') AND CONCAT(REPLACE(#{searchReportEndDate}, '-', ''), '235959')
+        <if test="searchReportDesigner != null and searchReportDesigner != ''">
+            AND DW.COM_INF_REG_ID = #{searchReportDesigner}
+        </if>
+        ORDER BY DW.COM_INF_REG_ID ASC, DW.COM_INF_REG_DT ASC
+    </select>
+
+    <!-- 일일일지 합계 목록 -->
+    <!-- 
+    <resultMap type="HashMap" id="dailyReportSumListResultMap">
+        <id property="ADM_MST_ID" column="ADM_MST_ID" />
+        <result property="ADM_MST_NM" column="ADM_MST_NM" />
+        <collection property="dayWrkGbnList" javaType="ArrayList" resultMap="dayWrkGbnListResultMap" />
+    </resultMap>
+    <resultMap type="HashMap" id="dayWrkGbnListResultMap">
+        <id property="COM_INF_IDX" column="COM_INF_IDX" />
+        <result property="COM_INF_NM" column="COM_INF_NM" />
+        <result property="DAY_WRK_GBN_ADV_CNT" column="DAY_WRK_GBN_ADV_CNT" />
+        <result property="DAY_WRK_GBN_PRS_CNT" column="DAY_WRK_GBN_PRS_CNT" />
+        <result property="DAY_WRK_GBN_TOTAL_CNT" column="DAY_WRK_GBN_TOTAL_CNT" />
+    </resultMap>
+     -->
+    <select id="selectDailyReportSumList" parameterType="HashMap" resultType="HashMap">
+        /* Sales.selectDailyReportSumList */
+        SELECT
+            S1.ADM_MST_ID
+            , S1.ADM_MST_NM
+            , S1.COM_INF_IDX
+            , S1.COM_INF_NM
+            , CASE WHEN S1.DAY_WORK_GBN_SAL_CNT > S1.DAY_WRK_GBN_ADV_CNT THEN S1.DAY_WORK_GBN_SAL_CNT ELSE S1.DAY_WRK_GBN_ADV_CNT END AS DAY_WRK_GBN_ADV_CNT
+            , S1.DAY_WORK_GBN_SAL_CNT
+            , CASE 
+                WHEN S1.DAY_WORK_GBN_SAL_CNT > S1.DAY_WRK_GBN_ADV_CNT THEN 100
+                ELSE IFNULL(ROUND((S1.DAY_WORK_GBN_SAL_CNT / S1.DAY_WRK_GBN_ADV_CNT) * 100), 0)
+            END AS DAY_WRK_GBN_PROBABILITY
+        FROM(
+            SELECT
+                AM.ADM_MST_ID
+                , AM.ADM_MST_NM
+                , CI.COM_INF_IDX
+                , CI.COM_INF_NM
+                , SUM(IF(DW.DAY_WRK_GBN = CAST(#{DAY_WORK_GBN_ADV} AS UNSIGNED), 1, 0)) AS DAY_WRK_GBN_ADV_CNT
+                , SUM(IF(DW.DAY_WRK_GBN = CAST(#{DAY_WORK_GBN_SAL} AS UNSIGNED), 1, 0)) AS DAY_WORK_GBN_SAL_CNT
+            FROM T_DAY_WRK DW
+                INNER JOIN T_COM_INF CI ON CI.COM_INF_IDX = DW.COM_INF_IDX
+                INNER JOIN T_ADM_MST AM ON AM.ADM_MST_ID = DW.COM_INF_REG_ID
+            WHERE DW.COM_INF_REG_DT BETWEEN CONCAT(REPLACE(#{searchReportSumStartDate}, '-', ''), '000000') AND CONCAT(REPLACE(#{searchReportSumEndDate}, '-', ''), '235959')
+            <if test="searchReportSumDesigner != null and searchReportSumDesigner != ''">
+                AND DW.COM_INF_REG_ID = #{searchReportSumDesigner}
+            </if>
+            GROUP BY AM.ADM_MST_ID, AM.ADM_MST_NM, CI.COM_INF_IDX, CI.COM_INF_NM
+        ) S1
+        WHERE S1.DAY_WRK_GBN_ADV_CNT <![CDATA[ > ]]> 0
+          OR S1.DAY_WORK_GBN_SAL_CNT <![CDATA[ > ]]> 0
+        ORDER BY S1.ADM_MST_ID ASC, S1.COM_INF_IDX ASC
+    </select>
+
+    <!-- 일일일지 등록 -->
+    <insert id="insertDailyReport" parameterType="HashMap">
+        /* Sales.insertDailyReport */
+        INSERT INTO T_DAY_WRK(
+            DAY_WRK_GBN
+            , COM_INF_IDX
+            , DAY_WRK_CTS
+            , COM_INF_REG_DT
+            , COM_INF_REG_IP
+            , COM_INF_REG_ID
+            , COM_INF_UPD_DT
+            , COM_INF_UPD_IP
+            , COM_INF_UPD_ID
+        )VALUES(
+            #{DAY_WRK_GBN}
+            , #{COM_INF_IDX}
+            , #{DAY_WRK_CTS}
+            , DATE_FORMAT(SYSDATE(), '%Y%m%d%H%i%s')
+            , #{REG_IP}
+            , #{ADM_MST_ID}
+            , DATE_FORMAT(SYSDATE(), '%Y%m%d%H%i%s')
+            , #{REG_IP}
+            , #{ADM_MST_ID}
+        )
+    </insert>
+
+    <!-- 일일일지 삭제 -->
+    <delete id="deleteDailyReport" parameterType="HashMap">
+        /* Sales.deleteDailyReport */
+        DELETE FROM T_DAY_WRK WHERE DAY_WRK_IDX = #{DAY_WRK_IDX}
+    </delete>
+
+    <!-- 가계부 목록 -->
+    <select id="selectLedgerList" parameterType="HashMap" resultType="HashMap">
+        /* Sales.selectLedgerList */
+        SELECT
+            AB.ACT_BOK_IDX
+            , AB.ACT_BOK_GBN
+            , AB.ACT_BOK_CTS
+            , AB.ACT_BOK_PAY
+            , AB.ACT_BOK_DT
+            , CC.CMN_COM_NM AS ACT_BOK_GBN_NM
+            , CONCAT(CAST(ROUND(AB.ACT_BOK_PAY / CAST(IFNULL(#{profitSum}, 0) AS UNSIGNED) * 100, 3) AS CHAR), ' %') AS ACT_BOK_PAY_RAT
+        FROM T_ACT_BOK AB
+            INNER JOIN T_CMM_COM CC ON CC.CMN_COM_IDX = AB.ACT_BOK_GBN
+        WHERE AB.ACT_BOK_DT BETWEEN REPLACE(#{searchStartDate}, '-', '') AND REPLACE(#{searchEndDate}, '-', '')
+        ORDER BY AB.ACT_BOK_DT ASC, AB.ACT_BOK_GBN ASC
+    </select>
+
+    <!-- 가계부 합계 목록 -->
+    <select id="selectLedgerSumList" parameterType="HashMap" resultType="HashMap">
+        /* Sales.selectLedgerSumList */
+        SELECT
+            AB.ACT_BOK_GBN
+            , CC.CMN_COM_NM AS ACT_BOK_GBN_NM
+            , SUM(IFNULL(AB.ACT_BOK_PAY , 0)) AS ACT_BOK_PAY_SUM
+            , CONCAT(CAST(ROUND(SUM(IFNULL(AB.ACT_BOK_PAY , 0)) / CAST(IFNULL(#{profitSum}, 0) AS UNSIGNED) * 100, 3) AS CHAR), ' %') AS ACT_BOK_PAY_SUM_RAT
+        FROM T_ACT_BOK AB
+            INNER JOIN T_CMM_COM CC ON CC.CMN_COM_IDX = AB.ACT_BOK_GBN
+        WHERE AB.ACT_BOK_DT BETWEEN REPLACE(#{searchStartDate}, '-', '') AND REPLACE(#{searchEndDate}, '-', '')
+        GROUP BY AB.ACT_BOK_GBN, CC.CMN_COM_NM
+        ORDER BY AB.ACT_BOK_GBN ASC
+    </select>
+
+    <!-- 가계부 등록 -->
+    <insert id="insertLedger" parameterType="HashMap">
+        /* Sales.insertLedger */
+        INSERT INTO T_ACT_BOK(
+            ACT_BOK_GBN
+            , ACT_BOK_CTS
+            , ACT_BOK_PAY
+            , ACT_BOK_DT
+            , ACT_BOK_REG_DT
+            , ACT_BOK_REG_IP
+            , ACT_BOK_REG_ID
+            , ACT_BOK_UPD_DT
+            , ACT_BOK_UPD_IP
+            , ACT_BOK_UPD_ID
+        )VALUES(
+            #{ACT_BOK_GBN}
+            , #{ACT_BOK_CTS}
+            , #{ACT_BOK_PAY}
+            , REPLACE(#{ACT_BOK_DT}, '-', '')
+            , DATE_FORMAT(SYSDATE(), '%Y%m%d%H%i%s')
+            , #{REG_IP}
+            , #{REG_ID}
+            , DATE_FORMAT(SYSDATE(), '%Y%m%d%H%i%s')
+            , #{REG_IP}
+            , #{REG_ID}
+        )
+    </insert>
+
+    <!-- 가계부 삭제 -->
+    <delete id="deleteLedger" parameterType="HashMap">
+        /* Sales.deleteLedger */
+        DELETE FROM T_ACT_BOK WHERE ACT_BOK_IDX = #{ACT_BOK_IDX}
+    </delete>
+</mapper>

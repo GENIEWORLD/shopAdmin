@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Config 3.0//EN" "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+    <!-- Null 처리 --> 
+    <settings>
+        <setting name="jdbcTypeForNull" value="NULL" />
+    </settings>
+
+    <mappers>
+        <!-- common -->
+        <mapper resource="egovframework/sqlmap/mapper/common/Common_SQL.xml"/>
+
+        <!-- login -->
+        <mapper resource="egovframework/sqlmap/mapper/login/Login_SQL.xml"/>
+
+        <!-- 고객관리 -->
+        <mapper resource="egovframework/sqlmap/mapper/customer/Customer_SQL.xml"/>
+
+        <!-- 주문관리 -->
+        <mapper resource="egovframework/sqlmap/mapper/order/Order_SQL.xml"/>
+
+        <!-- 직원관리 -->
+        <mapper resource="egovframework/sqlmap/mapper/employee/Employee_SQL.xml"/>
+
+        <!-- 상품관리 -->
+        <mapper resource="egovframework/sqlmap/mapper/product/Product_SQL.xml"/>
+        
+        <!-- 재고관리 -->
+        <mapper resource="egovframework/sqlmap/mapper/product/Stock_SQL.xml"/>
+        
+        <!-- 매출관리 -->
+        <mapper resource="egovframework/sqlmap/mapper/sales/Sales_SQL.xml"/>
+        
+        <!-- 공지사항 -->
+        <mapper resource="egovframework/sqlmap/mapper/board/Notice_SQL.xml"/>
+        
+        <!-- 매장관리 -->
+        <mapper resource="egovframework/sqlmap/mapper/manage/Store_SQL.xml"/>
+    </mappers>
+</configuration>

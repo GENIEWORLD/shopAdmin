@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="Store">
+
+    <!-- 매장관리 > 매장 검색조건 -->
+    <sql id="StoreWhere">
+        <where>
+            <if test="searchStrMstIdx != null and searchStrMstIdx !=''">
+            AND STR_MST_IDX = #{searchStrMstIdx}
+            </if>
+            <if test="searchStartDate != null and searchStartDate != '' and searchEndDate != null and searchEndDate != ''">
+            AND STR_MST_REG_DT BETWEEN CONCAT(REPLACE(#{searchStartDate}, '-', ''), '000000') AND CONCAT(REPLACE(#{searchEndDate}, '-', ''), '235959')
+            </if>
+            <if test="searchStrMstNm != null and searchStrMstNm != ''">
+            AND STR_MST_NM LIKE CONCAT('%', #{searchStrMstNm}, '%')
+            </if>
+            <if test="searchStrMstGbn != null and searchStrMstGbn != ''">
+            AND STR_MST_GBN = #{searchStrMstGbn}
+            </if>
+            <if test="searchStrMstTel != null and searchStrMstTel != ''">
+            AND STR_MST_TEL = #{searchStrMstTel}
+            </if>
+            <if test="searchStrMstUseYn != null and searchStrMstUseYn != ''">
+            AND STR_MST_USE_YN = #{searchStrMstUseYn}
+            </if>
+        </where>
+    </sql>
+
+    <!-- 매장관리 > 매장 매장 목록 개수 -->
+    <select id="selectStoreListCount" parameterType="HashMap" resultType="Integer">
+        /* Store.selectStoreListCount */
+        SELECT COUNT(STR_MST_IDX)
+        FROM T_STR_MST
+        <include refid="StoreWhere" />
+    </select>
+
+    <!-- 매장관리 > 매장 목록 -->
+    <select id="selectStoreList" parameterType="HashMap" resultType="HashMap">
+        /* Store.selectStoreList */
+        SELECT S1.*
+            , (SELECT CC.CMN_COM_NM FROM T_CMM_COM CC WHERE CC.CMN_COM_IDX = S1.STR_MST_GBN) AS STR_MST_GBN_NM
+        FROM (
+            SELECT STR_MST_IDX
+                , STR_MST_NM
+                , STR_MST_GBN
+                , STR_MST_TEL
+                , STR_MST_USE_YN
+                , STR_MST_REG_DT
+                , STR_MST_REG_ID
+            FROM T_STR_MST
+            <include refid="StoreWhere" />
+            ORDER BY STR_MST_REG_DT DESC
+            LIMIT #{startNum}, #{endNum}
+        ) S1
+    </select>
+    
+    <!-- 매장관리 > 매장 상세정보 -->
+    <select id="selectStoreInfo" parameterType="HashMap" resultType="HashMap">
+        /* Store.selectStoreInfo */
+        SELECT SM.STR_MST_IDX
+            , SM.STR_MST_NM
+            , SM.STR_MST_GBN
+            , (SELECT CC.CMN_COM_NM FROM T_CMM_COM CC WHERE CC.CMN_COM_IDX = SM.STR_MST_GBN) AS STR_MST_GBN_NM
+            , SM.STR_MST_TEL
+            , SM.STR_MST_ADDR
+            , SM.STR_MST_USE_YN
+            , SM.STR_MST_REG_DT
+            , SM.STR_MST_REG_ID
+            , SM.STR_MST_UPD_DT
+            , SM.STR_MST_UPD_ID
+        FROM T_STR_MST SM
+        WHERE STR_MST_IDX = #{STR_MST_IDX}
+    </select>
+
+    <!-- 매장관리 > 매장 등록 -->
+    <insert id="insertStore" parameterType="HashMap">
+        /* Store.insertStore */
+        INSERT INTO T_STR_MST (
+            STR_MST_NM
+            , STR_MST_GBN
+            , STR_MST_ADDR
+            , STR_MST_TEL
+            , STR_MST_USE_YN
+            , STR_MST_REG_DT
+            , STR_MST_REG_ID
+            , STR_MST_REG_IP
+        ) VALUES (
+            #{STR_MST_NM}
+            , #{STR_MST_GBN}
+            , #{STR_MST_ADDR}
+            , #{STR_MST_TEL}
+            , 'Y'
+            , DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+            , #{REG_ID}
+            , #{REG_IP}
+        )
+    </insert>
+    
+    <!-- 매장관리 > 매장 수정 -->
+    <update id="updateStore" parameterType="HashMap">
+        /* Store.updateStore */
+        UPDATE T_STR_MST SET
+            STR_MST_NM = #{STR_MST_NM}
+            <if test="STR_MST_GBN != null and STR_MST_GBN != ''">
+            , STR_MST_GBN = #{STR_MST_GBN}
+            </if>
+            , STR_MST_ADDR = #{STR_MST_ADDR} 
+            , STR_MST_TEL = #{STR_MST_TEL}
+            <if test="STR_MST_USE_YN != null and STR_MST_USE_YN != ''">
+            , STR_MST_USE_YN = #{STR_MST_USE_YN}
+            </if>
+            , STR_MST_UPD_DT = DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+            , STR_MST_UPD_ID = #{REG_ID}
+            , STR_MST_UPD_IP = #{REG_IP}
+        WHERE STR_MST_IDX = #{STR_MST_IDX}
+    </update>
+    
+    <!-- 공통 > 매장 목록 -->
+    <select id="selectStoreCommonList" parameterType="HashMap" resultType="HashMap">
+        /* Store.selectStoreCommonList */
+        SELECT STR_MST_IDX, STR_MST_NM
+        FROM T_STR_MST
+        WHERE STR_MST_USE_YN = 'Y'
+    </select>
+</mapper>

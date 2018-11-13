@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="Customer">
+
+    <!-- 고객 검색조건 -->
+    <sql id="CustomerWhere">
+        <where>
+            <if test="searchMemMstLvl != null and searchMemMstLvl != ''">
+                AND MM.MEM_MST_LVL = #{searchMemMstLvl}
+            </if>
+            <if test="searchWoard != null and searchWoard != '' and searchType != null and searchType.equals('name'.toString())">
+                AND MM.MEM_MST_NM = #{searchWoard}
+            </if>
+            <if test="searchWoard != null and searchWoard != '' and searchType != null and searchType.equals('no'.toString())">
+                AND MM.MEM_MST_CD LIKE CONCAT('%', #{searchWoard}, '%')
+            </if>
+            <if test="searchWoard != null and searchWoard != '' and searchType != null and searchType.equals('designer'.toString())">
+                AND AM.ADM_MST_NM LIKE CONCAT('%', #{searchWoard}, '%')
+            </if>
+        </where>
+    </sql>
+
+    <!-- 고객 수 -->
+    <select id="selectCustomerListCount" parameterType="HashMap" resultType="Integer">
+        /* Customer.selectBuyCustomerListCount */
+        SELECT
+            COUNT(MM.MEM_MST_IDX)
+        FROM T_MEM_MST MM
+            INNER JOIN T_ADM_MST AM ON AM.ADM_MST_ID = MM.ADM_MST_ID
+            INNER JOIN T_COM_INF CI ON CI.COM_INF_IDX = MM.COM_INF_IDX
+        <include refid="CustomerWhere" />
+    </select>
+
+    <!-- 고객 목록 -->
+    <select id="selectCustomerList" parameterType="HashMap" resultType="HashMap">
+        /* Customer.selectBuyCustomerList */
+        SELECT
+            MM.MEM_MST_IDX
+            , MM.MEM_MST_CD
+            , MM.MEM_MST_NM
+            , MM.MEM_MST_TEL
+            , DATE_FORMAT(MEM_MST_WED, '%Y-%m-%d') AS MEM_MST_WED
+            , DATE_FORMAT(MEM_MST_VST, '%Y-%m-%d') AS MEM_MST_VST
+            , MM.MEM_MST_RAT
+            , CASE
+                WHEN MM.MEM_MST_RAT = #{CUSTOMER_RAT_R} THEN '0%'
+                WHEN MM.MEM_MST_RAT = #{CUSTOMER_RAT_Y} THEN '50%'
+                WHEN MM.MEM_MST_RAT = #{CUSTOMER_RAT_G} THEN '100%'
+            END AS MEM_MST_RAT_STR
+            , MM.MEM_MST_GFT
+            , MM.MEM_MST_GFT_YN
+            , MM.MEM_MST_CSL
+            , AM.ADM_MST_NM 
+            , AM.ADM_MST_ID
+            , CI.COM_INF_IDX 
+            , CI.COM_INF_NM
+            , MM.MEM_MST_LVL
+        FROM T_MEM_MST MM
+            INNER JOIN T_ADM_MST AM ON AM.ADM_MST_ID = MM.ADM_MST_ID
+            INNER JOIN T_COM_INF CI ON CI.COM_INF_IDX = MM.COM_INF_IDX
+        <include refid="CustomerWhere" />
+        ORDER BY MM.MEM_MST_REG_DT DESC
+        <if test="endNum != null and endNum != ''">
+        LIMIT #{startNum}, #{endNum}
+        </if>
+    </select>
+
+    <!-- 고객 등록 -->
+    <insert id="insertCustomer" parameterType="HashMap">
+        /* Customer.insertCustomer */
+        INSERT INTO T_MEM_MST(
+            MEM_MST_CD
+            , MEM_MST_LVL
+            , MEM_MST_NM
+            , STR_MST_IDX
+            , ADM_MST_ID
+            , MEM_MST_TEL
+            , MEM_MST_WED
+            , MEM_MST_VST
+            , COM_INF_IDX
+            , MEM_MST_GFT
+            , MEM_MST_RAT
+            , MEM_MST_GFT_YN
+            , MEM_MST_CSL
+            , MEM_MST_REG_DT
+            , MEM_MST_REG_IP
+            , MEM_MST_REG_ID
+            , MEM_MST_UPD_DT
+            , MEM_MST_UPD_IP
+            , MEM_MST_UPD_ID
+        )VALUES(
+            #{MEM_MST_CD}
+            , #{MEM_MST_LVL}
+            , #{MEM_MST_NM}
+            , #{STR_MST_IDX}
+            , #{ADM_MST_ID}
+            , #{MEM_MST_TEL}
+            , REPLACE(#{MEM_MST_WED}, '-', '')
+            , REPLACE(#{MEM_MST_VST}, '-', '')
+            , #{COM_INF_IDX}
+            , #{MEM_MST_GFT}
+            , #{MEM_MST_RAT}
+            , #{MEM_MST_GFT_YN}
+            , #{MEM_MST_CSL}
+            , DATE_FORMAT(SYSDATE(), '%Y%m%d%H%i%s')
+            , #{REG_IP}
+            , #{REG_ID}
+            , DATE_FORMAT(SYSDATE(), '%Y%m%d%H%i%s')
+            , #{REG_IP}
+            , #{REG_ID}
+        )
+    </insert>
+
+    <!-- 고객 상세 정보 -->
+    <select id="selectCustomerInfo" parameterType="HashMap" resultType="HashMap">
+        /* Customer.selectCustomerInfo */
+        SELECT
+            MEM_MST_IDX, MEM_MST_CD, MEM_MST_LVL, MEM_MST_NM, STR_MST_IDX, ADM_MST_ID
+            , MEM_MST_TEL, COM_INF_IDX, MEM_MST_GFT, MEM_MST_RAT, MEM_MST_GFT_YN, MEM_MST_CSL
+            , DATE_FORMAT(MEM_MST_WED, '%Y-%m-%d') AS MEM_MST_WED
+            , DATE_FORMAT(MEM_MST_VST, '%Y-%m-%d') AS MEM_MST_VST
+        FROM T_MEM_MST
+        WHERE MEM_MST_IDX = #{MEM_MST_IDX}
+            AND MEM_MST_LVL = #{MEM_MST_LVL}
+    </select>
+
+    <!-- 고객 수정 -->
+    <update id="updateCustomer" parameterType="HashMap">
+        /* Customer.updateCustomer */
+        UPDATE T_MEM_MST
+        SET
+            MEM_MST_CD = #{MEM_MST_CD}
+            <if test="MEM_MST_NM != null and MEM_MST_NM != ''">
+            , MEM_MST_NM = #{MEM_MST_NM}
+            </if>
+            <if test="STR_MST_IDX != null and STR_MST_IDX != ''">
+            , STR_MST_IDX = #{STR_MST_IDX}
+            </if>
+            <if test="ADM_MST_ID != null and ADM_MST_ID != ''">
+            , ADM_MST_ID = #{ADM_MST_ID}
+            </if>
+            <if test="MEM_MST_TEL != null and MEM_MST_TEL != ''">
+            , MEM_MST_TEL = #{MEM_MST_TEL}
+            </if>
+            <if test="MEM_MST_WED != null and MEM_MST_WED != ''">
+            , MEM_MST_WED = REPLACE(#{MEM_MST_WED}, '-', '')
+            </if>
+            <if test="MEM_MST_VST != null and MEM_MST_VST != ''">
+            , MEM_MST_VST = REPLACE(#{MEM_MST_VST}, '-', '')
+            </if>
+            <if test="COM_INF_IDX != null and COM_INF_IDX != ''">
+            , COM_INF_IDX = #{COM_INF_IDX}
+            </if>
+            <if test="MEM_MST_GFT != null and MEM_MST_GFT != ''">
+            , MEM_MST_GFT = #{MEM_MST_GFT}
+            </if>
+            <if test="MEM_MST_RAT != null and MEM_MST_RAT != ''">
+            , MEM_MST_RAT = #{MEM_MST_RAT}
+            </if>
+            <if test="MEM_MST_GFT_YN != null and MEM_MST_GFT_YN != ''">
+            , MEM_MST_GFT_YN = #{MEM_MST_GFT_YN}
+            </if>
+            <if test="MEM_MST_CSL != null and MEM_MST_CSL != ''">
+            , MEM_MST_CSL = #{MEM_MST_CSL}
+            </if>
+            , MEM_MST_UPD_DT = DATE_FORMAT(SYSDATE(), '%Y%m%d%H%i%s')
+            , MEM_MST_UPD_IP = #{REG_IP}
+            , MEM_MST_UPD_ID = #{REG_ID}
+        WHERE MEM_MST_IDX = #{MEM_MST_IDX}
+            AND MEM_MST_LVL = #{MEM_MST_LVL}
+    </update>
+
+    <!-- 확률 업체별 -->
+    <select id="selectCustomerProbabilityVendorList" parameterType="HashMap" resultType="HashMap">
+        /* Customer.selectCustomerProbabilityVendorList */
+        SELECT
+            S1.COM_INF_NM
+            , S1.MEM_CNT
+            , CONCAT(CAST(ROUND(S1.RAT_R_CNT/S1.MEM_CNT * 100) AS CHAR), ' %') AS RAT_R
+            , CONCAT(CAST(ROUND(S1.RAT_Y_CNT/S1.MEM_CNT * 100) AS CHAR), ' %') AS RAT_Y
+            , CONCAT(CAST(ROUND(S1.RAT_G_CNT/S1.MEM_CNT * 100) AS CHAR), ' %') AS RAT_G
+        FROM(
+            SELECT
+                MM.COM_INF_IDX
+                , CI.COM_INF_NM
+                , COUNT(MM.MEM_MST_IDX) AS MEM_CNT
+                , SUM(IF(MM.MEM_MST_RAT = #{CUSTOMER_RAT_R}, 1, 0)) AS RAT_R_CNT
+                , SUM(IF(MM.MEM_MST_RAT = #{CUSTOMER_RAT_Y}, 1, 0)) AS RAT_Y_CNT
+                , SUM(IF(MM.MEM_MST_RAT = #{CUSTOMER_RAT_G}, 1, 0)) AS RAT_G_CNT
+            FROM T_MEM_MST MM
+                INNER JOIN T_COM_INF CI ON CI.COM_INF_IDX = MM.COM_INF_IDX
+            WHERE MM.MEM_MST_REG_DT BETWEEN CONCAT(REPLACE(#{searchVendorStartDate}, '-', ''), '000000') AND CONCAT(REPLACE(#{searchVendorEndDate}, '-', ''), '235959') 
+            GROUP BY MM.COM_INF_IDX, CI.COM_INF_NM
+        ) S1
+        ORDER BY S1.COM_INF_IDX ASC
+    </select>
+
+    <!-- 확률 직원별 -->
+    <select id="selectCustomerProbabilityEmployeeList" parameterType="HashMap" resultType="HashMap">
+        /* Customer.selectCustomerProbabilityEmployeeList */
+        SELECT
+            S1.ADM_MST_NM
+            , S1.MEM_CNT
+            , CONCAT(CAST(ROUND(S1.RAT_R_CNT/S1.MEM_CNT * 100) AS CHAR), ' %') AS RAT_R
+            , CONCAT(CAST(ROUND(S1.RAT_Y_CNT/S1.MEM_CNT * 100) AS CHAR), ' %') AS RAT_Y
+            , CONCAT(CAST(ROUND(S1.RAT_G_CNT/S1.MEM_CNT * 100) AS CHAR), ' %') AS RAT_G
+        FROM(
+            SELECT
+                MM.ADM_MST_ID
+                , AM.ADM_MST_NM
+                , COUNT(MM.MEM_MST_IDX) AS MEM_CNT
+                , SUM(IF(MM.MEM_MST_RAT = #{CUSTOMER_RAT_R}, 1, 0)) AS RAT_R_CNT
+                , SUM(IF(MM.MEM_MST_RAT = #{CUSTOMER_RAT_Y}, 1, 0)) AS RAT_Y_CNT
+                , SUM(IF(MM.MEM_MST_RAT = #{CUSTOMER_RAT_G}, 1, 0)) AS RAT_G_CNT  
+            FROM T_MEM_MST MM
+                INNER JOIN T_ADM_MST AM ON AM.ADM_MST_ID = MM.ADM_MST_ID
+            WHERE MM.MEM_MST_REG_DT BETWEEN CONCAT(REPLACE(#{searchVendorStartDate}, '-', ''), '000000') AND CONCAT(REPLACE(#{searchVendorEndDate}, '-', ''), '235959') 
+            GROUP BY MM.ADM_MST_ID, AM.ADM_MST_NM
+        ) S1
+        ORDER BY S1.ADM_MST_ID ASC
+    </select>
+
+    <!-- 가망고객 > 구매고객 변경 -->
+    <update id="updateCustomerBuyLvl" parameterType="HashMap">
+        /* Customer.updateCustomerBuyLvl */
+        UPDATE T_MEM_MST
+        SET
+            MEM_MST_LVL = #{MEM_MST_LVL}
+            , MEM_MST_RAT = #{MEM_MST_RAT}
+            , MEM_MST_UPD_DT = DATE_FORMAT(SYSDATE(), '%Y%m%d%H%i%s')
+            , MEM_MST_UPD_IP = #{REG_IP}
+            , MEM_MST_UPD_ID = #{REG_ID}
+        WHERE MEM_MST_IDX = #{MEM_MST_IDX}
+    </update>
+</mapper>

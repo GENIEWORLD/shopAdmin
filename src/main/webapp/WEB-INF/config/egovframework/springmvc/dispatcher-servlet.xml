@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:p="http://www.springframework.org/schema/p"
+    xmlns:context="http://www.springframework.org/schema/context"
+    xmlns:mvc="http://www.springframework.org/schema/mvc" xmlns:task="http://www.springframework.org/schema/task"
+    xsi:schemaLocation="http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-4.0.xsd
+                http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.0.xsd
+                http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.0.xsd
+                http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task-4.0.xsd">
+ 
+    <!-- annotation 설정 -->
+    <context:component-scan base-package="com.shopAdmin">
+        <context:include-filter type="annotation" expression="org.springframework.stereotype.Controller"/>
+        <context:exclude-filter type="annotation" expression="org.springframework.stereotype.Service"/>
+        <context:exclude-filter type="annotation" expression="org.springframework.stereotype.Repository"/>
+    </context:component-scan>
+
+    <!-- Scheduler 설정 -->
+    <task:scheduler id="jobScheduler" pool-size="10" />
+    <task:annotation-driven scheduler="jobScheduler" />
+
+    <!-- json parameter converter -->
+    <bean id="jacksonMessageConverter" class="org.springframework.http.converter.json.MappingJackson2HttpMessageConverter"></bean>
+
+    <!-- parameter commandMap -->
+    <bean class="org.springframework.web.servlet.mvc.annotation.AnnotationMethodHandlerAdapter">
+        <property name="customArgumentResolvers">
+            <bean class="com.common.resolver.CommandMapArgumentResolver" />
+        </property>
+        <property name="messageConverters">
+            <list>
+                <ref bean="jacksonMessageConverter" />
+                <bean class="org.springframework.http.converter.xml.Jaxb2RootElementHttpMessageConverter" />
+            </list>
+        </property>
+    </bean>
+
+    <!-- MappingJacksonJsonView 설정 -->
+    <bean id="jsonView" class="org.springframework.web.servlet.view.json.MappingJackson2JsonView"/>
+
+    <!-- 서블릿컨네이너상의 exception에 대한 오류 페이지를 연결하는 mvc 설정 -->
+    <bean class="org.springframework.web.servlet.handler.SimpleMappingExceptionResolver">
+        <property name="defaultErrorView" value="pc/common/error/error" />
+        <property name="exceptionMappings">
+            <props>
+                <!-- 공통 -->
+                <prop key="com.common.exception.FileUploadException">common/error/error_fileUpload</prop>
+                <prop key="com.common.exception.TransactionException">common/error/error_transaction</prop>
+                <prop key="com.common.exception.SessionException">common/error/error_session</prop>
+                <prop key="com.common.exception.AccessException">common/error/error_access</prop>
+            </props>
+        </property>
+    </bean>
+
+    <!-- @Controllers에서 연결되는 JSP 경로 설정 -->
+    <bean id="viewResolver" class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+        <property name="prefix" value="/WEB-INF/jsp/" />
+        <property name="suffix" value=".jsp" />
+        <property name="order" value="1" />
+    </bean>
+
+    <!-- download view 설정 -->
+    <bean id="downloadView" class="com.common.util.DownloadView" />
+
+    <bean id="downloadViewResolver" class="org.springframework.web.servlet.view.BeanNameViewResolver">
+        <property name="order">
+            <value>0</value>
+        </property>
+    </bean>
+
+    <!-- 파일업로드 Resolver 설정 -->
+    <bean id="multipartResolver" class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+        <property name="maxUploadSize" value="31457280" /> <!-- 10M -->
+    </bean>
+    
+    <!-- 쿠키를 이용한 Locale 이용시 -->  
+    <bean id="localeResolver" class="org.springframework.web.servlet.i18n.CookieLocaleResolver">
+        <property name="cookieName" value="shopAdminLanguage"/>   
+        <property name="cookieMaxAge" value="100000"/>
+        <property name="cookiePath" value="/"/>
+        <property name="defaultLocale" value="ko" />
+    </bean>
+
+    <!-- 인터셉터 설정 -->
+    <mvc:interceptors>
+        <bean class="com.common.interceptor.LoggingInterceptor" />
+        <bean class="com.common.interceptor.WebAccessInterceptor" />
+        <bean id="localeChangeInterceptor" class="org.springframework.web.servlet.i18n.LocaleChangeInterceptor">
+            <property name="paramName" value="lang"/>
+        </bean>
+    </mvc:interceptors>
+</beans>

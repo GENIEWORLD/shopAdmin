@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="Stock">
+
+    <!-- 재고관리 > 재고 검색조건 -->
+    <sql id="StockWhere">
+        WHERE SM.SKU_MST_USE_YN = 'Y'
+            <if test="searchStartDate != null and searchStartDate != '' and searchEndDate != null and searchEndDate != ''">
+            AND SM.SKU_MST_REG_DT BETWEEN CONCAT(REPLACE(#{searchStartDate}, '-', ''), '000000') AND CONCAT(REPLACE(#{searchEndDate}, '-', ''), '235959')
+            </if>
+            <if test="searchStrMstIdx != null and searchStrMstIdx != ''">
+            AND SM.STR_MST_IDX = #{searchStrMstIdx}
+            </if>
+            <if test="searchPrdMstCd != null and searchPrdMstCd != ''">
+            AND SM.PRD_MST_CD = #{searchPrdMstCd}
+            </if>
+            <if test="searchPrdMstNm != null and searchPrdMstNm != ''">
+            AND PM.PRD_MST_NM LIKE CONCAT('%', #{searchPrdMstNm}, '%')
+            </if>
+            <if test="searchSkuMstStatus != null and searchSkuMstStatus != ''">
+            AND SM.SKU_MST_STATUS = #{searchSkuMstStatus}
+            </if>
+    </sql>
+
+    <!-- 재고관리 > 재고목록 개수 -->
+    <select id="selectStockListCount" parameterType="HashMap" resultType="Integer">
+        /* Stock.selectStockListCount */
+        SELECT COUNT(SKU_MST_IDX)
+        FROM T_PRD_MST PM
+        INNER JOIN T_SKU_MST SM ON PM.PRD_MST_CD = SM.PRD_MST_CD
+        <include refid="StockWhere" />
+    </select>
+
+    <!-- 재고관리 > 재고목록 -->
+    <select id="selectStockList" parameterType="HashMap" resultType="HashMap">
+        /* Stock.selectStockList */
+        SELECT S1.*
+            , (SELECT SM.STR_MST_NM FROM T_STR_MST SM WHERE SM.STR_MST_IDX = S1.STR_MST_IDX) AS STR_MST_NM
+        FROM (
+            SELECT SM.SKU_MST_IDX
+                , SM.PRD_MST_CD
+                , SM.STR_MST_IDX
+                , SM.SKU_MST_STATUS
+                , SM.SKU_MST_STC
+                , SM.SKU_MST_PRC
+                , SM.SKU_MST_REG_DT
+                , SM.SKU_MST_REG_ID
+                , PM.PRD_MST_NM
+            FROM T_PRD_MST PM
+            INNER JOIN T_SKU_MST SM ON PM.PRD_MST_CD = SM.PRD_MST_CD
+            <include refid="StockWhere" />
+            ORDER BY SKU_MST_REG_DT
+            LIMIT #{startNum}, #{endNum}
+        ) S1
+    </select>
+
+    <!-- 상품관리 > 재고 상세정보 -->
+    <select id="selectStockInfo" parameterType="HashMap" resultType="HashMap">
+        /* Stock.selectStockInfo */
+        SELECT SM.SKU_MST_IDX
+            , SM.PRD_MST_CD
+            , SM.STR_MST_IDX
+            , SM.SKU_MST_STC
+            , SM.SKU_MST_REG_DT
+            , SM.SKU_MST_REG_ID
+            , PM.PRD_MST_NM
+        FROM T_PRD_MST PM
+        INNER JOIN T_SKU_MST SM ON PM.PRD_MST_CD = SM.PRD_MST_CD
+        WHERE SM.SKU_MST_USE_YN = 'Y'
+            AND SM.SKU_MST_IDX = #{SKU_MST_IDX}
+    </select>
+
+    <!-- 상품관리 > 재고등록 --> 
+    <insert id="insertStock" parameterType="HashMap">
+        /* Stock.insertStock */
+        INSERT INTO T_SKU_MST (
+            PRD_MST_CD
+            , STR_MST_IDX
+            , SKU_MST_STATUS
+            , SKU_MST_STC
+            , SKU_MST_PRC
+            , SKU_MST_USE_YN
+            , SKU_MST_REG_DT
+            , SKU_MST_REG_IP
+            , SKU_MST_REG_ID
+        ) VALUES (
+            #{PRD_MST_CD}
+            , #{STR_MST_IDX}
+            , #{SKU_MST_STATUS}
+            , #{SKU_MST_STC}
+            , #{SKU_MST_PRC}
+            , 'Y'
+            , DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+            , #{REG_IP}
+            , #{REG_ID}
+        )
+    </insert>
+    
+    <!-- 상품관리 > 재고수정 -->
+    <update id="updateStock" parameterType="HashMap">
+        /* Stock.updateStock */
+        UPDATE T_SKU_MST SET
+            SKU_MST_STATUS = #{SKU_MST_STATUS}
+            , SKU_MST_STC = #{SKU_MST_STC}
+            , SKU_MST_PRC = #{SKU_MST_PRC}
+            <if test="SKU_MST_STATUS != null and SKU_MST_STATUS == PRODUCT_STATUS_SOLD_OUT">
+            , SKU_MST_SOLD_OUT_DT = DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+            </if>
+            , SKU_MST_UPD_DT = DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+            , SKU_MST_UPD_IP = #{REG_IP}
+            , SKU_MST_UPD_ID = #{REG_ID}
+        WHERE SKU_MST_IDX = #{SKU_MST_IDX}
+    </update>
+    
+    <!-- 상품관리 > 재고MERGE -->
+    <insert id="mergeStock" parameterType="HashMap">
+        /* Stock.mergeStock */
+        INSERT INTO T_SKU_MST (
+            PRD_MST_CD
+            <if test="SKU_MST_IDX != null and SKU_MST_IDX > 0">
+            , SKU_MST_IDX
+            </if>
+            , STR_MST_IDX
+            , SKU_MST_STATUS
+            , SKU_MST_STC
+            , SKU_MST_PRC
+            , SKU_MST_USE_YN
+            , SKU_MST_REG_DT
+            , SKU_MST_REG_IP
+            , SKU_MST_REG_ID
+        ) VALUES (
+            #{PRD_MST_CD}
+            <if test="SKU_MST_IDX != null and SKU_MST_IDX > 0">
+            , #{SKU_MST_IDX}
+            </if>
+            , #{STR_MST_IDX}
+            , #{SKU_MST_STATUS}
+            , #{SKU_MST_STC}
+            , #{SKU_MST_PRC}
+            , 'Y'
+            , DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+            , #{REG_IP}
+            , #{REG_ID}
+        )
+        ON DUPLICATE KEY UPDATE
+            STR_MST_IDX = #{STR_MST_IDX}
+            , SKU_MST_STATUS = #{SKU_MST_STATUS}
+            , SKU_MST_STC = #{SKU_MST_STC}
+            , SKU_MST_PRC = #{SKU_MST_PRC}
+            <if test="SKU_MST_STATUS != null and SKU_MST_STATUS == PRODUCT_STATUS_SOLD_OUT">
+            , SKU_MST_SOLD_OUT_DT = DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+            </if>
+            , SKU_MST_UPD_DT = DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+            , SKU_MST_UPD_IP = #{REG_IP}
+            , SKU_MST_UPD_ID = #{REG_ID}
+    </insert>
+    
+    <!-- 상품관리 > 재고삭제 -->
+    <update id="deleteStock" parameterType="HashMap">
+        /* Stock.deleteStock */
+        UPDATE T_SKU_MST SET
+            SKU_MST_USE_YN = 'N'
+        WHERE PRD_MST_CD = #{PRD_MST_CD}
+            AND STR_MST_IDX = #{STR_MST_IDX}
+    </update>
+    
+    <!-- 메인 > 재고품절 목록 -->
+    <select id="selectStockSoldOutList" parameterType="HashMap" resultType="HashMap">
+        /* Stock.selectStockSoldOutList */
+        SELECT S1.*
+           /* , (SELECT SM.STR_MST_NM FROM T_STR_MST SM WHERE SM.STR_MST_IDX = S1.STR_MST_IDX) AS STR_MST_NM */
+            , (SELECT CC.CMN_COM_NM FROM T_CMM_COM CC WHERE CC.CMN_COM_IDX = S1.SKU_MST_STATUS) AS SKU_MST_STATUS_NM
+        FROM (
+            SELECT PM.PRD_MST_CD
+                , PM.PRD_MST_NM
+                , SM.STR_MST_IDX
+                , SM.SKU_MST_STATUS
+                , SM.SKU_MST_STC
+                , SM.SKU_MST_PRC
+                , SM.SKU_MST_SOLD_OUT_DT
+                , CASE 
+                    WHEN SM.SKU_MST_SOLD_OUT_DT BETWEEN DATE_FORMAT(DATE_ADD(NOW(), interval-5 DAY), '%Y%m%d%H%i%s') 
+                                                    AND DATE_FORMAT(DATE_ADD(NOW(), interval-3 DAY), '%Y%m%d%H%i%s') THEN 'info' 
+                    WHEN SM.SKU_MST_SOLD_OUT_DT BETWEEN DATE_FORMAT(DATE_ADD(NOW(), interval-7 DAY), '%Y%m%d%H%i%s')
+                                                    AND DATE_FORMAT(DATE_ADD(NOW(), interval-5 DAY), '%Y%m%d%H%i%s') THEN 'warning'
+                    WHEN SM.SKU_MST_SOLD_OUT_DT <![CDATA[<=]]> DATE_FORMAT(DATE_ADD(NOW(), interval-7 DAY), '%Y%m%d%H%i%s') THEN 'danger' 
+                END AS ALERT_CLASS
+            FROM T_SKU_MST SM
+            INNER JOIN T_PRD_MST PM ON SM.PRD_MST_CD = PM.PRD_MST_CD
+            WHERE SM.SKU_MST_USE_YN = 'Y'
+                <if test="SKU_MST_STATUS != null and SKU_MST_STATUS != ''">
+                AND SM.SKU_MST_STATUS = #{SKU_MST_STATUS}
+                </if>
+                <if test="STR_MST_IDX != null and STR_MST_IDX != ''">
+                AND SM.STR_MST_IDX = #{STR_MST_IDX}
+                </if>
+            ORDER BY SM.SKU_MST_SOLD_OUT_DT DESC
+            LIMIT 0, 10
+        ) S1
+    </select>
+</mapper>

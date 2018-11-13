@@ -1,0 +1,480 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="Employee">
+
+    <!-- 직원관리 > 급여관리 > 디자이너 급여 목록 -->
+    <select id="selectEmployeeDesignerSalaryList" parameterType="HashMap" resultType="HashMap">
+        /* Employee.selectEmployeeDesignerSalaryList */
+        SELECT S2.*
+            , S2.DSN_SLR_BSC_PAY + S2.DSN_SLR_JOB_PAY + S2.DSN_SLR_BNS + S2.DSN_SLR_ISR + S2.DSN_SLR_TAX + S2.DSN_SLR_ICT AS DSN_SLR_TOT
+            <if test="LEDGERLIST_GBN_SLR != null and LEDGERLIST_GBN_SLR !=''">
+            , (SELECT CC.CMN_COM_NM FROM T_CMM_COM CC WHERE CC.CMN_COM_IDX = #{LEDGERLIST_GBN_SLR}) AS ACT_BOK_GBN_NM
+            , CONCAT(CAST(ROUND((S2.DSN_SLR_BSC_PAY + S2.DSN_SLR_JOB_PAY + S2.DSN_SLR_BNS + S2.DSN_SLR_ISR + S2.DSN_SLR_TAX + S2.DSN_SLR_ICT) / CAST(IFNULL(#{profitSum}, 0) AS UNSIGNED) * 100, 3) AS CHAR), ' %') AS ACT_BOK_PAY_RAT
+            </if>
+        FROM (
+            SELECT S1.*
+                , ROUND(S1.PROFIT * S1.ADM_MST_ICT / 100) AS DSN_SLR_ICT
+            FROM (
+                SELECT AM.ADM_MST_ID
+                    , AM.ADM_MST_NM
+                    , IFNULL(AM.ADM_MST_ICT, 0) AS ADM_MST_ICT
+                    , DS.DSN_SLR_DT
+                    , DS.DSN_SLR_BSC_PAY
+                    , DS.DSN_SLR_JOB_PAY
+                    , DS.DSN_SLR_BNS
+                    , -DS.DSN_SLR_ISR AS DSN_SLR_ISR
+                    , -DS.DSN_SLR_TAX AS DSN_SLR_TAX
+                    , CASE 
+                          WHEN DS.DSN_SLR_ICT_GBN = #{INCEN_TYPE_INDIVIDUAL} 
+                              THEN IFNULL(( SELECT SUM(IFNULL(OM.ORD_MST_SAL , 0)) - SUM(ROUND(OM.ORD_MST_SAL * CI.COM_INF_CMS / 100))
+                                            FROM T_ODR_MST OM
+                                            INNER JOIN T_COM_INF CI ON CI.COM_INF_IDX = OM.COM_INF_IDX
+                                            WHERE OM.ORD_MST_ORD_DT BETWEEN CONCAT(#{searchDay}, '01000000') AND CONCAT(DATE_FORMAT(LAST_DAY(CONCAT(#{searchDay}, '01')), '%Y%m%d'), '235959')
+                                                AND OM.ADM_MST_ID = AM.ADM_MST_ID ), 0)
+                          WHEN DS.DSN_SLR_ICT_GBN = #{INCEN_TYPE_SHOP} 
+                              THEN IFNULL(( SELECT SUM(IFNULL(OM.ORD_MST_SAL , 0)) - SUM(ROUND(OM.ORD_MST_SAL * CI.COM_INF_CMS / 100))
+                                            FROM T_ODR_MST OM
+                                            INNER JOIN T_COM_INF CI ON CI.COM_INF_IDX = OM.COM_INF_IDX
+                                            WHERE OM.ORD_MST_ORD_DT BETWEEN CONCAT(#{searchDay}, '01000000') AND CONCAT(DATE_FORMAT(LAST_DAY(CONCAT(#{searchDay}, '01')), '%Y%m%d'), '235959')
+                                                AND OM.STR_MST_IDX = AM.STR_MST_IDX ), 0)
+                          ELSE 0
+                    END AS PROFIT
+                FROM T_ADM_MST AM
+                INNER JOIN T_DSN_SLR DS ON AM.ADM_MST_ID = DS.ADM_MST_ID
+                WHERE DSN_SLR_DT = #{searchDay}
+                    <if test="ADM_MST_ID != null and ADM_MST_ID != ''">
+                    AND AM.ADM_MST_ID = #{ADM_MST_ID}
+                    </if>
+            ) S1
+        ) S2
+    </select>
+    
+
+    <!-- 직원관리 > 급여관리 > 디자이너 급여 등록 -->
+    <insert id="insertEmployeeDesignerSalary" parameterType="HashMap">
+        /* Employee.insertEmployeeDesignerSalary */
+        INSERT INTO T_DSN_SLR (
+             ADM_MST_ID
+            , DSN_SLR_DT
+            , DSN_SLR_BSC_PAY
+            , DSN_SLR_JOB_PAY
+            , DSN_SLR_ICT_GBN
+            , DSN_SLR_ICT
+            , DSN_SLR_ISR
+            , DSN_SLR_TAX
+            , DSN_SLR_BNS
+            , DSN_SLR_REG_DT
+            , DSN_SLR_REG_IP
+            , DSN_SLR_REG_ID
+        )
+        SELECT ADM_MST_ID
+          , DATE_FORMAT(NOW(), '%Y%m')
+          , IFNULL(ADM_MST_BSC_PAY, 0)
+          , IFNULL(ADM_MST_JOB_PAY, 0)
+          , IFNULL(ADM_MST_ICT_GBN, 0)
+          , IFNULL(ADM_MST_ICT, 0)
+          , IFNULL(ADM_MST_ISR, 0)
+          , IFNULL(ADM_MST_TAX, 0)
+          , 0
+          , DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+          , '0:0:0:0:0:0:0:1'
+          , 'SYSTEM'
+        FROM T_ADM_MST
+        WHERE ADM_MST_USE_YN = 'Y'
+            AND ADM_MST_GBN = #{ADMIN_TYPE_DESIGNER}
+    </insert>
+
+    <!-- 직원관리 > 급여관리 > 디자이너 급여 수정 -->
+    <update id="updateEmployeeDesignerSalary" parameterType="HashMap">
+        /* Employee.updateEmployeeDesignerSalary */
+        UPDATE T_DSN_SLR SET
+            DSN_SLR_BNS = #{DSN_SLR_BNS}
+            , DSN_SLR_UPD_ID = #{REG_ID}
+            , DSN_SLR_UPD_IP = #{REG_IP}
+            , DSN_SLR_UPD_DT = DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+        WHERE DSN_SLR_DT = #{DSN_SLR_DT}
+            AND ADM_MST_ID = #{ADM_MST_ID}
+    </update>
+
+    <!-- 직원관리 > 휴일관리 > 직원 목록 -->
+    <select id="selectEmployeeHolidayAdminList" parameterType="HashMap" resultType="HashMap">
+        SELECT ADM_MST_ID, ADM_MST_NM
+        FROM T_ADM_MST
+        WHERE ADM_MST_USE_YN = 'Y'
+    </select>
+
+    <!-- 직원관리 > 휴일관리 > 이번달 휴일정보 -->
+    <select id="selectEmployeeHolidayMasterInfo" parameterType="HashMap" resultType="HashMap">
+        /* Employee.selectEmployeeHolidayMasterInfo */
+        SELECT HLD_MST_CNT
+        FROM T_HLD_MST
+        WHERE HLD_MST_YER = #{searchYear}
+            AND HLD_MST_MON = #{searchMonth}
+    </select>
+    
+    <!-- 직원관리 > 휴일관리 > 이번달 휴일정보 MERGE -->
+    <insert id="mergeEmployeeHolidayMaster" parameterType="HashMap">
+        /* Employee.mergeEmployeeHolidayMaster */
+        INSERT INTO T_HLD_MST (
+            HLD_MST_YER
+            , HLD_MST_MON
+            , HLD_MST_CNT
+            , HLD_MST_REG_ID
+            , HLD_MST_REG_IP
+            , HLD_MST_REG_DT
+        ) VALUES (
+            #{HLD_MST_YER}
+            , #{HLD_MST_MON}
+            , IFNULL(#{HLD_MST_CNT}, 0)
+            , #{REG_ID}
+            , #{REG_IP}
+            , DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+        ) ON DUPLICATE KEY UPDATE 
+            HLD_MST_YER = #{HLD_MST_YER}
+            , HLD_MST_MON = #{HLD_MST_MON}
+            , HLD_MST_CNT = IFNULL(#{HLD_MST_CNT}, 0)
+            , HLD_MST_UPD_ID = #{REG_ID}
+            , HLD_MST_UPD_IP = #{REG_IP}
+            , HLD_MST_UPD_DT = DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+    </insert>
+    
+    <!-- 직원관리 > 휴일관리 > 남은휴일 목록 -->
+    <select id="selectEmployeeHolidayRemainList" parameterType="HashMap" resultType="HashMap">
+        /* Employee.selectEmployeeHolidayRemainList */
+        SELECT AM.ADM_MST_ID, AM.ADM_MST_NM, IFNULL(DH.DSN_HLD_CNT, 0) AS HLD_RMN_CNT
+        FROM T_ADM_MST AM
+        LEFT OUTER JOIN (
+            SELECT DSN_HLD_ID, DSN_HLD_CNT
+            FROM T_DSN_HLD
+            WHERE DSN_HLD_YER = #{searchYear}
+                AND DSN_HLD_MON = #{searchMonth}
+        ) DH ON AM.ADM_MST_ID = DH.DSN_HLD_ID
+        WHERE AM.ADM_MST_USE_YN = 'Y'
+            <if test="ADM_MST_ID != null and ADM_MST_ID != ''">
+            AND AM.ADM_MST_ID = #{ADM_MST_ID}
+            </if>
+        ORDER BY AM.ADM_MST_REG_DT ASC
+    </select>
+    
+    <!-- 직원관리 > 휴일관리 > 남은휴일 MERGE -->
+    <insert id="mergeEmployeeHolidayRemain" parameterType="HashMap">
+        /* Employee.mergeEmployeeHolidayRemain */
+        INSERT INTO T_DSN_HLD (
+            DSN_HLD_YER
+            , DSN_HLD_MON
+            , DSN_HLD_CNT
+            , DSN_HLD_ID
+            , DSN_HLD_REG_ID
+            , DSN_HLD_REG_IP
+            , DSN_HLD_REG_DT
+        ) VALUES (
+            #{DSN_HLD_YER}
+            , #{DSN_HLD_MON}
+            , IFNULL(#{DSN_HLD_CNT}, 0)
+            , #{DSN_HLD_ID}
+            , #{REG_ID}
+            , #{REG_IP}
+            , DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+        ) ON DUPLICATE KEY UPDATE 
+            DSN_HLD_YER = #{DSN_HLD_YER}
+            , DSN_HLD_MON = #{DSN_HLD_MON}
+            , DSN_HLD_CNT = IFNULL(#{DSN_HLD_CNT}, 0)
+            , DSN_HLD_ID = #{DSN_HLD_ID}
+            , DSN_HLD_UPD_ID = #{REG_ID}
+            , DSN_HLD_UPD_IP = #{REG_IP}
+            , DSN_HLD_UPD_DT = DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+    </insert>
+    
+    <!-- 직원관리 > 휴일관리 > 휴일목록 -->
+    <select id="selectEmployeeHolidayList" parameterType="HashMap" resultType="HashMap">
+        /* Employee.selectEmployeeHolidayList */
+        SELECT AM.ADM_MST_ID
+            , HI.HLD_INF_IDX
+            , AM.ADM_MST_NM AS title
+            , CONCAT(DATE_FORMAT(HI.HLD_INF_SRT_DT, '%Y-%m-%d')) AS start
+            , CONCAT(DATE_FORMAT(HI.HLD_INF_END_DT, '%Y-%m-%d'), ' 16:00') AS end
+            , AM.ADM_MST_COR AS backgroundColor
+        FROM T_ADM_MST AM
+        INNER JOIN T_HLD_INF HI ON AM.ADM_MST_ID = HI.ADM_MST_ID
+        WHERE CONCAT(#{searchYear}, #{searchMonth}) BETWEEN SUBSTRING(HLD_INF_SRT_DT, 1, 6) AND SUBSTRING(HLD_INF_END_DT, 1, 6)
+    </select>
+    
+    <!-- 직원관리 > 휴일관리 > 휴일 등록 -->
+    <insert id="insertEmployeeHoliday" parameterType="HashMap">
+        /* Employee.insertEmployeeHoliday */
+        INSERT INTO T_HLD_INF (
+          HLD_INF_SRT_DT
+          , HLD_INF_END_DT
+          , HLD_INF_DAY
+          , ADM_MST_ID
+          , HLD_INF_REG_ID
+          , HLD_INF_REG_IP
+          , HLD_INF_REG_DT
+        ) VALUES (
+          REPLACE(#{HLD_INF_SRT_DT}, '-', '')
+          , REPLACE(#{HLD_INF_END_DT}, '-', '')
+          , DATEDIFF(#{HLD_INF_END_DT}, #{HLD_INF_SRT_DT}) + 1
+          , #{ADM_MST_ID}
+          , #{REG_ID}
+          , #{REG_IP}
+          , DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+        )
+    </insert>
+    
+    <!-- 직원관리 > 휴일관리 > 휴일삭제 -->
+    <delete id="deleteEmployeeHoliday" parameterType="HashMap">
+        /* Employee.deleteEmployeeHoliday */
+        DELETE FROM T_HLD_INF WHERE HLD_INF_IDX = #{HLD_INF_IDX}
+    </delete>
+    
+    <!-- 직원관리 >  관리자 관리 > 관리자 조건절 -->
+    <sql id="EmployeeManagerWhere">
+        <where>
+        <if test="searchType != null and searchType.equals('name') and searchWoard != null and searchWoard != ''">
+        AND ADM_MST_NM LIKE CONCAT('%', #{searchWoard}, '%')
+        </if>
+        <if test="searchType != null and searchType.equals('id') and searchWoard != null and searchWoard != ''">
+        AND ADM_MST_ID = #{searchWoard}
+        </if>
+        <if test="searchAdmMstUseYn != null and searchAdmMstUseYn != ''">
+        AND ADM_MST_USE_YN = #{searchAdmMstUseYn}
+        </if>
+        </where>
+    </sql>
+    
+    <!-- 직원관리 >  관리자 관리 > 관리자 목록 개수 -->
+    <select id="selectEmployeeManagerListCount" parameterType="HashMap" resultType="Integer">
+        /* Employee.selectEmployeeManagerListCount */
+        SELECT COUNT(ADM_MST_ID)
+        FROM T_ADM_MST
+        <include refid="EmployeeManagerWhere" />
+    </select>
+    
+    <!-- 직원관리 >  관리자 관리 > 관리자 목록 -->
+    <select id="selectEmployeeManagerList" parameterType="HashMap" resultType="HashMap">
+        /* Employee.selectEmployeeManagerList */
+        SELECT S1.*
+            , (SELECT CC.CMN_COM_NM FROM T_CMM_COM CC WHERE CC.CMN_COM_IDX = S1.ADM_MST_GBN) AS AMD_MST_GBN_NM
+            , (SELECT SM.STR_MST_NM FROM T_STR_MST SM WHERE SM.STR_MST_IDX = S1.STR_MST_IDX) AS STR_MST_NM
+        FROM (
+            SELECT ADM_MST_ID, ADM_MST_NM
+                , ADM_MST_GBN, ADM_MST_TEL
+                , STR_MST_IDX, ADM_MST_USE_YN
+                , ADM_MST_REG_ID, ADM_MST_REG_DT
+            FROM T_ADM_MST
+            <include refid="EmployeeManagerWhere" />
+            ORDER BY ADM_MST_REG_DT DESC
+            LIMIT #{startNum}, #{endNum}
+        ) S1
+    </select>
+    
+    <!-- 직원관리 >  관리자 관리 > 관리자 상세정보 -->
+    <select id="selectEmployeeManagerInfo" parameterType="HashMap" resultType="HashMap">
+        /* Employee.selectEmployeeManagerInfo */
+        SELECT ADM_MST_ID
+            , ADM_MST_GBN
+            , ADM_MST_NM
+            , ADM_MST_PWD
+            , ADM_MST_TEL
+            , ADM_MST_USE_YN
+            , STR_MST_IDX
+            , ADM_MST_SAL
+            , ADM_MST_PAY
+            , ADM_MST_DEL
+            , ADM_MST_NTC
+            , ADM_MST_BSC_PAY
+            , ADM_MST_JOB_PAY
+            , ADM_MST_ICT_GBN
+            , ADM_MST_ICT
+            , ADM_MST_ISR
+            , ADM_MST_TAX
+            , ADM_MST_COR
+        FROM T_ADM_MST
+        WHERE ADM_MST_ID = #{ADM_MST_ID}
+    </select>
+    
+    <!-- 직원관리 >  관리자 관리 > 관리자 아이디 중복 체크 개수 -->
+    <select id="selectEmployeeManagerDupCount" parameterType="HashMap" resultType="Integer">
+        /* Employee.selectEmployeeManagerDupCount */
+        SELECT COUNT(ADM_MST_ID)
+        FROM T_ADM_MST
+        WHERE ADM_MST_ID = #{ADM_MST_ID}
+    </select>
+    
+    <!-- 직원관리 >  관리자 관리 > 관리자 등록 -->
+    <insert id="insertEmployeeManager" parameterType="HashMap">
+        /* Employee.insertEmployeeManager */
+        INSERT INTO T_ADM_MST(
+            ADM_MST_ID
+            , ADM_MST_GBN
+            , ADM_MST_NM
+            , ADM_MST_PWD
+            , ADM_MST_TEL
+            , ADM_MST_USE_YN
+            , STR_MST_IDX
+            , ADM_MST_SAL
+            , ADM_MST_PAY
+            , ADM_MST_DEL
+            , ADM_MST_NTC
+            , ADM_MST_BSC_PAY
+            , ADM_MST_JOB_PAY
+            , ADM_MST_ICT_GBN
+            , ADM_MST_ICT
+            , ADM_MST_ISR
+            , ADM_MST_TAX
+            , ADM_MST_COR
+            , ADM_MST_REG_DT
+            , ADM_MST_REG_IP
+            , ADM_MST_REG_ID
+        ) VALUES (
+            #{ADM_MST_ID}
+            , #{ADM_MST_GBN}
+            , #{ADM_MST_NM}
+            , #{ADM_MST_PWD}
+            , #{ADM_MST_TEL}
+            , IFNULL(#{ADM_MST_USE_YN}, 'N')
+            , #{STR_MST_IDX}
+            , #{ADM_MST_SAL}
+            , #{ADM_MST_PAY}
+            , #{ADM_MST_DEL}
+            , #{ADM_MST_NTC}
+            , #{ADM_MST_BSC_PAY}
+            , #{ADM_MST_JOB_PAY}
+            , #{ADM_MST_ICT_GBN}
+            , #{ADM_MST_ICT}
+            , #{ADM_MST_ISR}
+            , #{ADM_MST_TAX}
+            , #{ADM_MST_COR}
+            , DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+            , #{REG_IP}
+            , #{REG_ID}
+        )
+    </insert>
+    
+    <!-- 직원관리 >  관리자 관리 > 관리자 수정 -->
+    <update id="updateEmployeeManager" parameterType="HashMap">
+        /* Employee.updateEmployeeManager */
+        UPDATE T_ADM_MST SET
+            ADM_MST_GBN = #{ADM_MST_GBN}
+            , ADM_MST_NM = #{ADM_MST_NM}
+            <if test="ADM_MST_PWD != null and ADM_MST_PWD != ''">
+            , ADM_MST_PWD = #{ADM_MST_PWD}
+            </if>
+            , ADM_MST_TEL = #{ADM_MST_TEL}
+            , ADM_MST_USE_YN = IFNULL(#{ADM_MST_USE_YN}, 'N')
+            , STR_MST_IDX = #{STR_MST_IDX}
+            , ADM_MST_SAL = #{ADM_MST_SAL}
+            , ADM_MST_PAY = #{ADM_MST_PAY}
+            , ADM_MST_DEL = #{ADM_MST_DEL}
+            , ADM_MST_NTC = #{ADM_MST_NTC}
+            , ADM_MST_BSC_PAY = #{ADM_MST_BSC_PAY}
+            , ADM_MST_JOB_PAY = #{ADM_MST_JOB_PAY}
+            , ADM_MST_ICT_GBN = #{ADM_MST_ICT_GBN}
+            , ADM_MST_ICT = #{ADM_MST_ICT}
+            , ADM_MST_ISR = #{ADM_MST_ISR}
+            , ADM_MST_TAX = #{ADM_MST_TAX}
+            , ADM_MST_COR = #{ADM_MST_COR}
+            , ADM_MST_UPD_DT = DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+            , ADM_MST_UPD_IP = #{REG_IP}
+            , ADM_MST_UPD_ID = #{REG_ID}
+        WHERE ADM_MST_ID = #{ADM_MST_ID}
+    </update>
+    
+    <!-- 직원관리 >  관리자 관리 > 업체 조건절 -->
+    <sql id="EmployeeVendorWhere">
+        <where>
+            <if test="searchComInfNm != null and searchComInfNm != ''">
+            AND COM_INF_NM LIKE CONCAT('%', #{searchComInfNm}, '%')
+            </if>
+            <if test="searchComInfYn != null and searchComInfYn != ''">
+            AND COM_INF_YN = #{searchComInfYn}
+            </if>
+        </where>
+    </sql>
+    
+    <!-- 직원관리 >  관리자 관리 > 업체 개수 -->
+    <select id="selectEmployeeVendorListCount" parameterType="HashMap" resultType="Integer">
+        /* Employee.selectEmployeeVendorListCount */
+        SELECT COUNT(COM_INF_IDX)
+        FROM T_COM_INF
+        <include refid="EmployeeVendorWhere" />
+    </select>
+    
+    <!-- 직원관리 >  관리자 관리 > 업체 목록 -->
+    <select id="selectEmployeeVendorList" parameterType="HashMap" resultType="HashMap">
+        /* Employee.selectEmployeeVendorList */
+        SELECT COM_INF_IDX
+            , COM_INF_NM
+            , COM_INF_CMS
+            , COM_INF_YN
+            , COM_INF_REG_DT
+            , COM_INF_REG_IP
+            , COM_INF_REG_ID 
+        FROM T_COM_INF
+        <include refid="EmployeeVendorWhere" />
+        ORDER BY COM_INF_REG_DT DESC
+        LIMIT #{startNum}, #{endNum}
+    </select>
+    
+    <!-- 직원관리 >  관리자 관리 > 업체 상세정보 -->
+    <select id="selectEmployeeVendorInfo" parameterType="HashMap" resultType="HashMap">
+        /* Employee.selectEmployeeVendorInfo */
+        SELECT COM_INF_IDX
+            , COM_INF_NM
+            , COM_INF_CMS
+            , COM_INF_YN
+            , COM_INF_REG_DT
+            , COM_INF_REG_ID
+        FROM T_COM_INF
+        WHERE COM_INF_IDX = #{COM_INF_IDX}
+    </select>
+    
+    <!-- 직원관리 >  관리자 관리 > 업체 등록 -->
+    <insert id="insertEmployeeVendor" parameterType="HashMap">
+        /* Employee.insertEmployeeVendor */
+        INSERT INTO T_COM_INF(
+            COM_INF_NM
+            , COM_INF_CMS
+            , COM_INF_YN
+            , COM_INF_REG_DT
+            , COM_INF_REG_IP
+            , COM_INF_REG_ID
+        ) VALUES (
+            #{COM_INF_NM}
+            , #{COM_INF_CMS}
+            , IFNULL(#{COM_INF_YN}, 'N')
+            , DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+            , #{REG_IP}
+            , #{REG_ID}
+        )
+    </insert>
+    
+    <!-- 직원관리 >  관리자 관리 > 업체 수정 -->
+    <update id="updateEmployeeVendor" parameterType="HashMap">
+        /* Employee.updateEmployeeVendor */
+        UPDATE T_COM_INF SET
+            COM_INF_NM = #{COM_INF_NM}
+            , COM_INF_CMS = #{COM_INF_CMS}
+            , COM_INF_YN = IFNULL(#{COM_INF_YN}, 'N')
+            , COM_INF_UPD_DT = DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')
+            , COM_INF_UPD_IP = #{REG_IP}
+            , COM_INF_UPD_ID = #{REG_ID}
+        WHERE COM_INF_IDX = #{COM_INF_IDX}
+    </update>
+    
+    <!-- 배치 > 디자이너 지난달 남은 휴일 -->
+    <select id="selectEmployeeHolidayPrevRemainList" parameterType="HashMap" resultType="HashMap">
+        /* Employee.selectEmployeeHolidayPrevRemainList */
+        SELECT AM.ADM_MST_ID, SUM(DH.DSN_HLD_CNT) AS DSN_HLD_CNT
+        FROM T_DSN_HLD DH
+        INNER JOIN T_ADM_MST AM ON DH.DSN_HLD_ID = AM.ADM_MST_ID
+        WHERE CONCAT(DH.DSN_HLD_YER, DH.DSN_HLD_MON) <![CDATA[<=]]> CONCAT(YEAR(DATE_ADD(NOW(), interval-1 MONTH)), LPAD(MONTH(DATE_ADD(NOW(), interval-1 MONTH)), 2, '0'))
+            AND AM.ADM_MST_USE_YN = 'Y'
+            <if test="ADM_MST_ID != null and ADM_MST_ID != ''">
+            AND AM.ADM_MST_ID = #{ADM_MST_ID}
+            </if>
+        GROUP BY AM.ADM_MST_ID
+    </select>
+    
+</mapper>
